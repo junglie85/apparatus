@@ -1,0 +1,10 @@
+[package]
+name = "firefly"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[[example]]
+name = "greet"
+path = "examples/greet.rs"
