@@ -1,389 +1,595 @@
 use fontdue::{Font, FontSettings};
-use minifb::{KeyRepeat, Window, WindowOptions};
-use std::collections::HashMap;
+use std::ops::Add;
 use std::time::{Duration, Instant};
-
-// TODO: Public API sizes as f32 (use a math library for points?).
-// TODO: Load sprite images.
-// TODO: Load and display fonts.
-// TODO: Split into update and render stages?
-
-pub trait Gfx {
-    fn clear(&mut self, pixel: Pixel);
-
-    fn draw(&mut self, x: usize, y: usize, pixel: Pixel);
-
-    fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, pixel: Pixel);
-
-    fn width(&self) -> usize;
-
-    fn height(&self) -> usize;
-}
+use thiserror::Error;
 
 pub trait Game {
-    fn on_create(&mut self); // TODO: Return Result<(), CreateError>?
+    fn on_update(&mut self, input: &impl Input, dt: Duration);
 
-    fn on_update(&mut self, gfx: &mut impl Gfx, dt: Duration, input: &impl Input);
+    fn on_render(&self, gfx: &mut impl Gfx);
 }
 
-pub struct GameEngine {
-    width: usize,
-    height: usize,
-    tile_width: usize,
-    tile_height: usize,
-    name: String,
+#[derive(Error, Debug)]
+pub enum EngineError {
+    #[error("no game was provided")]
+    NoGameProvided,
+    #[error("window error")]
+    Window(#[from] WindowError),
 }
 
-impl GameEngine {
-    pub fn new(
-        width: usize,
-        height: usize,
-        tile_width: usize,
-        tile_height: usize,
-        name: impl AsRef<str>,
-    ) -> Self {
+pub struct GameEngineBuilder<'a, G>
+where
+    G: Game,
+{
+    game: Option<G>,
+    name: &'a str,
+    window_dimensions: Vec2,
+}
+
+impl<'a, G> Default for GameEngineBuilder<'a, G>
+where
+    G: Game,
+{
+    fn default() -> Self {
         Self {
-            width,
-            height,
-            tile_width,
-            tile_height,
-            name: name.as_ref().to_string(),
+            game: None,
+            name: "Firefly Game Engine",
+            window_dimensions: Vec2::new(640.0, 480.0),
+        }
+    }
+}
+
+impl<'a, G> GameEngineBuilder<'a, G>
+where
+    G: Game,
+{
+    pub fn build(self) -> GameEngine<'a, G> {
+        GameEngine {
+            game: self.game,
+            name: self.name,
+            window_dimensions: self.window_dimensions,
         }
     }
 
-    pub fn start(&mut self, game: &mut impl Game) {
-        let framebuffer = FrameBuffer {
-            width: self.width,
-            height: self.height,
-            data: vec![0; self.width * self.height],
+    pub fn with_game(mut self, game: G) -> Self {
+        self.game = Some(game);
+        self
+    }
+
+    pub fn with_name(mut self, name: &'a str) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn with_window_dimensions(mut self, width: usize, height: usize) -> Self {
+        self.window_dimensions = Vec2::new(width as f32, height as f32);
+        self
+    }
+}
+
+pub struct GameEngine<'a, G>
+where
+    G: Game,
+{
+    game: Option<G>,
+    name: &'a str,
+    window_dimensions: Vec2,
+}
+
+impl<'a, G> GameEngine<'a, G>
+where
+    G: Game,
+{
+    pub fn builder() -> GameEngineBuilder<'a, G> {
+        GameEngineBuilder::default()
+    }
+
+    pub fn run(self) -> Result<(), EngineError> {
+        let mut game = match self.game {
+            Some(game) => game,
+            _ => return Err(EngineError::NoGameProvided),
         };
 
-        let mut gfx = Gfx2d::new(framebuffer, self.tile_width, self.tile_height);
-        let mut window = Window::new(
-            self.name.as_str(),
-            self.width,
-            self.height,
-            WindowOptions::default(),
-        )
-        .unwrap_or_else(|e| panic!("{}", e));
+        let mut window = Window::new(self.name, self.window_dimensions)?;
+        let frame_buffer = FrameBuffer::new(self.window_dimensions);
+        let mut gfx = EngineGfx::new(self.window_dimensions, frame_buffer);
 
-        window.limit_update_rate(Some(Duration::from_micros(4_000)));
+        init_default_font();
 
-        // Load fonts up front.
-        let font = include_bytes!("../assets/fonts/Orbitron Medium.otf") as &[u8];
-        let settings = FontSettings {
-            scale: 12.0,
-            ..FontSettings::default()
-        };
-        let font = Font::from_bytes(font, settings).unwrap();
-        let (metrics, bitmap) = font.rasterize_subpixel('a', 12.0);
-        println!("P6\n{} {}\n255\n", metrics.width, metrics.height);
-        for y in 0..metrics.height {
-            for x in 0..metrics.width {
-                print!("{}, ", bitmap[y * metrics.width + x]);
+        let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
+
+        let mut clock = Clock::default();
+        clock.tick();
+
+        let mut running = true;
+        while running {
+            if window.should_close() {
+                running = false;
             }
-            println!();
-        }
 
-        game.on_create();
+            let input = process_input(&window);
 
-        let target_frame_duration = Duration::from_micros((1_000_000.0 / 30.0) as u64);
+            game.on_update(&input, target_frame_duration);
+            game.on_render(&mut gfx);
 
-        let mut start = Instant::now();
-        let mut sleep_tolerance = Duration::from_micros(0);
-        while window.is_open() {
-            // Input.
-            let mut input = InputState::new();
-            if window.is_key_down(minifb::Key::Up) {
-                input.keys.insert(Key::Up, KeyState { is_held: true });
-            }
-            if window.is_key_down(minifb::Key::Left) {
-                input.keys.insert(Key::Left, KeyState { is_held: true });
-            }
-            if window.is_key_down(minifb::Key::Right) {
-                input.keys.insert(Key::Right, KeyState { is_held: true });
-            }
-            let input = input;
-
-            game.on_update(&mut gfx, target_frame_duration, &input);
-
-            for y in 0..metrics.height {
-                for x in 0..metrics.width {
-                    gfx.draw(
-                        (gfx.width / 2) + x,
-                        ((gfx.height / 2) / 2) + y,
-                        Pixel::from_rgba(
-                            0.0,
-                            0.0,
-                            0.0,
-                            bitmap[y * metrics.width + x] as f32 / 255.0,
-                        ),
-                    );
-                    print!(
-                        "{} ({}, {}), ",
-                        bitmap[y * metrics.width + x],
-                        (gfx.width / 2) + x,
-                        ((gfx.height / 2) / 2) + y
-                    );
-                }
-                println!();
-            }
-            println!();
-
-            // Audio.
-
-            // Sleep.
-            let elapsed = start.elapsed();
+            let elapsed = clock.elapsed();
             if elapsed < target_frame_duration {
-                if elapsed + sleep_tolerance < target_frame_duration {
-                    let sleep = target_frame_duration - (elapsed + sleep_tolerance);
-                    if sleep > Duration::from_micros(0) {
-                        std::thread::sleep(sleep);
-                    }
-
-                    let elapsed = start.elapsed();
-                    if elapsed > target_frame_duration {
-                        sleep_tolerance += Duration::from_micros(100);
-                        eprintln!("Sleep caused frame to exceed target duration");
-                    }
+                if let Err(e) = sleep(target_frame_duration - elapsed) {
+                    eprintln!("{}", e);
                 }
-
-                let mut elapsed = start.elapsed();
-                while elapsed < target_frame_duration {
-                    // Eat CPU cycles.
-                    elapsed = start.elapsed();
-                }
-            } else {
-                eprintln!(
-                    "Missed target frame duration (got {:?}ms)",
-                    elapsed.as_millis()
-                );
             }
 
-            let end = Instant::now();
-            #[cfg(debug_assertions)]
-            let frame_duration = end - start;
-            start = end;
+            clock.tick();
 
-            // Display.
-            let framebuffer = &mut gfx.buffer;
-            window
-                .update_with_buffer(&framebuffer.data, framebuffer.width(), framebuffer.height())
-                .unwrap();
+            window.display(gfx.buffer())?;
 
             // Stats.
             #[cfg(debug_assertions)]
             {
-                let fps = 1_000 / frame_duration.as_millis();
-                // println!(
-                //     "ms/F: {} | FPS: {} | Sleep tolerance (ms): {}",
-                //     frame_duration.as_millis() as f32,
-                //     fps,
-                //     sleep_tolerance.as_micros() as f32 / 1_000_f32
-                // );
+                let fps = 1.0 / clock.delta().as_secs_f32();
+                println!(
+                    "ms/F: {:.2} | FPS: {:.2} | Sleep tolerance (ms): {}",
+                    clock.delta().as_secs_f32() * 1_000.0,
+                    fps,
+                    unsafe { SLEEP_TOLERANCE }.as_micros() as f32 / 1_000_f32
+                );
             }
         }
+
+        Ok(())
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Pixel {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+//------------------------------------------- Window -----------------------------------------------
+
+#[derive(Error, Debug)]
+pub enum WindowError {
+    #[error("could not create a window")]
+    Create(#[source] minifb::Error),
+    #[error("could not create a window")]
+    Display(#[source] minifb::Error),
 }
 
-impl Pixel {
-    pub fn from_rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
+struct Window {
+    width: f32,
+    height: f32,
+    native_window: minifb::Window,
+}
+
+impl Window {
+    fn new(name: &str, dimensions: Vec2) -> Result<Self, WindowError> {
+        let width = dimensions.x;
+        let height = dimensions.y;
+
+        let native_window = minifb::Window::new(
+            name,
+            width as usize,
+            height as usize,
+            minifb::WindowOptions::default(),
+        )
+        .map_err(WindowError::Create)?;
+
+        let window = Self {
+            width,
+            height,
+            native_window,
+        };
+
+        Ok(window)
+    }
+
+    fn display(&mut self, buffer: &FrameBuffer) -> Result<(), WindowError> {
+        self.native_window
+            .update_with_buffer(&buffer.data, self.width as usize, self.height as usize)
+            .map_err(WindowError::Display)
+    }
+
+    fn should_close(&self) -> bool {
+        !self.native_window.is_open()
     }
 }
-
-impl From<Pixel> for u32 {
-    fn from(pixel: Pixel) -> Self {
-        let r = (pixel.r * 255.0).round() as u32;
-        let g = (pixel.g * 255.0).round() as u32;
-        let b = (pixel.b * 255.0).round() as u32;
-        let a = (pixel.a * 255.0).round() as u32;
-
-        (a << 24) | (r << 16) | (g << 8) | b
-    }
-}
-
-impl Copy for Pixel {}
 
 struct FrameBuffer {
-    width: usize,
-    height: usize,
     data: Vec<u32>,
 }
 
 impl FrameBuffer {
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    pub fn height(&self) -> usize {
-        self.height
-    }
-}
-
-struct Gfx2d {
-    buffer: FrameBuffer,
-    width: usize,
-    height: usize,
-    tile_width: usize,
-    tile_height: usize,
-}
-
-impl Gfx2d {
-    fn new(buffer: FrameBuffer, tile_width: usize, tile_height: usize) -> Self {
-        let width = buffer.width() / tile_width;
-        let height = buffer.height() / tile_height;
-
+    fn new(dimensions: Vec2) -> Self {
         Self {
-            buffer,
-            width,
-            height,
-            tile_width,
-            tile_height,
+            data: vec![0; (dimensions.x * dimensions.y) as usize],
         }
     }
 }
 
-impl Gfx for Gfx2d {
-    fn clear(&mut self, pixel: Pixel) {
-        self.buffer.data = vec![Into::<u32>::into(pixel); self.buffer.width * self.buffer.height];
-    }
+//------------------------------------------- Input ------------------------------------------------
 
-    fn draw(&mut self, x: usize, y: usize, pixel: Pixel) {
-        //TODO: lerp!
-        let x1 = x * self.tile_width;
-        let y1 = self.buffer.height - y * self.tile_height;
-        let x2 = x1 + self.tile_width;
-        let y2 = y1 - self.tile_height;
-
-        for y in y2..y1 {
-            for x in x1..x2 {
-                self.buffer.data[y * self.buffer.width + x] = pixel.into();
-            }
-        }
-    }
-
-    fn fill(&mut self, x1: usize, y1: usize, x2: usize, y2: usize, pixel: Pixel) {
-        for y in y1..y2 {
-            for x in x1..x2 {
-                self.draw(x, y, pixel);
-            }
-        }
-    }
-
-    fn width(&self) -> usize {
-        self.width
-    }
-
-    fn height(&self) -> usize {
-        self.height
-    }
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Key {
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 pub trait Input {
     fn is_key_held(&self, key: Key) -> bool;
 }
 
-pub struct KeyState {
-    is_held: bool,
+struct EngineInput {
+    keys: Vec<Key>,
 }
 
-#[derive(Eq, PartialEq, Hash)]
-pub enum Key {
-    Up,
-    Left,
-    Right,
-}
-
-pub struct InputState {
-    keys: HashMap<Key, KeyState>,
-}
-
-impl InputState {
+impl EngineInput {
     fn new() -> Self {
-        let keys = HashMap::new();
+        let keys = Vec::new();
 
         Self { keys }
     }
 }
 
-impl Input for InputState {
+impl Input for EngineInput {
     fn is_key_held(&self, key: Key) -> bool {
-        if let Some(key) = self.keys.get(&key) {
-            return key.is_held;
-        }
-
-        false
+        self.keys.contains(&key)
     }
 }
 
-pub fn clamp<T>(min: T, value: T, max: T) -> T
-where
-    T: PartialOrd,
-{
+#[cfg(test)]
+mod input_tests {
+    use super::*;
+
+    #[test]
+    fn key_not_pressed_is_not_held() {
+        let input = EngineInput::new();
+
+        assert!(!input.is_key_held(Key::Up));
+    }
+
+    #[test]
+    fn key_pressed_is_held() {
+        let mut input = EngineInput::new();
+        input.keys.push(Key::Up);
+
+        assert!(input.is_key_held(Key::Up));
+    }
+}
+
+fn process_input(window: &Window) -> EngineInput {
+    let mut input = EngineInput::new();
+
+    window
+        .native_window
+        .get_keys()
+        .iter()
+        .for_each(|key| match key {
+            minifb::Key::Up => input.keys.push(Key::Up),
+            minifb::Key::Down => input.keys.push(Key::Down),
+            minifb::Key::Left => input.keys.push(Key::Left),
+            minifb::Key::Right => input.keys.push(Key::Right),
+            _ => (),
+        });
+
+    input
+}
+
+//------------------------------------------ Graphics ----------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Color(f32, f32, f32, f32); // (r, g, b, a)
+
+impl Color {
+    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self(r, g, b, a)
+    }
+
+    pub const fn rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
+        let r = (r / 255) as f32;
+        let g = (g / 255) as f32;
+        let b = (b / 255) as f32;
+        let a = (a / 255) as f32;
+
+        Self::rgba(r, g, b, a)
+    }
+
+    pub fn lerp(&self, color: Self) -> Self {
+        let r = lerp(self.0, color.0, self.3);
+        let g = lerp(self.1, color.1, self.3);
+        let b = lerp(self.2, color.2, self.3);
+
+        Self::rgba(r, g, b, 0.0)
+    }
+
+    pub const BLACK: Self = Self::rgba(0.0, 0.0, 0.0, 0.0);
+    pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 0.0);
+}
+
+impl From<Color> for u32 {
+    fn from(color: Color) -> Self {
+        let a = ((color.3 * 255.0) as u32) << 24;
+        let r = ((color.0 * 255.0) as u32) << 16;
+        let g = ((color.1 * 255.0) as u32) << 8;
+        let b = (color.2 * 255.0) as u32;
+
+        a | r | g | b
+    }
+}
+
+#[cfg(test)]
+mod color_tests {
+    use super::*;
+
+    #[test]
+    fn color_can_be_represented_in_argb_by_u32() {
+        let color = Color::rgba(0.25, 0.5, 0.75, 1.0);
+        let expected = (255 << 24) | ((63.75 as u32) << 16) | ((127.5 as u32) << 8) | 191.25 as u32;
+
+        assert_eq!(expected, Into::<u32>::into(color));
+    }
+
+    #[test]
+    fn color_can_be_created_from_u8_components() {
+        let color = Color::rgba_u8(255, 255, 255, 0);
+        let expected = Color::rgba(1.0, 1.0, 1.0, 0.0);
+
+        assert_eq!(expected, color);
+    }
+
+    #[test]
+    fn linear_blend_red_color_no_alpha_with_blue_color_is_red() {
+        let red = Color::rgba(1.0, 0.0, 0.0, 0.0);
+        let blue = Color::rgba(0.0, 0.0, 1.0, 0.0);
+
+        assert_eq!(red.lerp(blue), red);
+    }
+
+    #[test]
+    fn linear_blend_red_color_full_alpha_with_blue_color_is_blue() {
+        let red = Color::rgba(1.0, 0.0, 0.0, 1.0);
+        let blue = Color::rgba(0.0, 0.0, 1.0, 0.0);
+
+        assert_eq!(red.lerp(blue), blue);
+    }
+}
+
+pub trait Gfx {
+    fn clear(&mut self, color: Color);
+
+    fn draw(&mut self, position: Vec2, color: Color);
+
+    fn fill(&mut self, from: Vec2, to: Vec2, color: Color);
+
+    fn text(&mut self, value: impl AsRef<str>, origin: Vec2);
+}
+
+struct EngineGfx {
+    width: f32,
+    height: f32,
+    buffer: FrameBuffer,
+}
+
+impl EngineGfx {
+    fn new(window_dimensions: Vec2, buffer: FrameBuffer) -> Self {
+        Self {
+            width: window_dimensions.x,
+            height: window_dimensions.y,
+            buffer,
+        }
+    }
+
+    fn buffer(&self) -> &FrameBuffer {
+        &self.buffer
+    }
+}
+
+impl Gfx for EngineGfx {
+    fn clear(&mut self, color: Color) {
+        self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
+    }
+
+    fn draw(&mut self, position: Vec2, color: Color) {
+        let x = position.x;
+        let y = self.height - position.y;
+
+        let x = clamp(0.0, x, self.width - 1.0).round();
+        let y = clamp(0.0, y, self.height - 1.0).round();
+
+        let dst = self.buffer.data[(y * self.width + x) as usize];
+        let dst_a = ((dst >> 24) & 255) as f32 / 255.0;
+        let dst_r = ((dst >> 16) & 255) as f32 / 255.0;
+        let dst_g = ((dst >> 8) & 255) as f32 / 255.0;
+        let dst_b = (dst & 255) as f32 / 255.0;
+        let dst = Color::rgba(dst_r, dst_g, dst_b, dst_a);
+
+        self.buffer.data[(y * self.width + x) as usize] = color.lerp(dst).into();
+    }
+
+    fn fill(&mut self, from: Vec2, to: Vec2, color: Color) {
+        for y in from.y as i32..to.y as i32 {
+            for x in from.x as i32..to.x as i32 {
+                self.draw(Vec2::new(x as f32, y as f32), color);
+            }
+        }
+    }
+
+    fn text(&mut self, value: impl AsRef<str>, origin: Vec2) {
+        unsafe {
+            let mut character_offset_x = 0.0;
+            for c in value.as_ref().chars() {
+                if let Some(font) = &DEFAULT_FONT {
+                    let (metrics, bitmap) = font.rasterize(c, DEFAULT_FONT_SIZE);
+
+                    for y in 0..metrics.height {
+                        for x in 0..metrics.width {
+                            let font_pixel = Color::rgba(
+                                0.0,
+                                0.0,
+                                0.0,
+                                1.0 - (bitmap[y * metrics.width + x] as f32 / 255.0),
+                            );
+                            self.draw(
+                                Vec2::new(
+                                    origin.x + character_offset_x + metrics.xmin as f32 + x as f32,
+                                    origin.y + metrics.ymin as f32 + (metrics.height - y) as f32,
+                                ),
+                                font_pixel,
+                            );
+                        }
+                    }
+
+                    character_offset_x += metrics.advance_width;
+                }
+            }
+        }
+    }
+}
+
+//------------------------------------------- Fonts ------------------------------------------------
+
+static mut DEFAULT_FONT: Option<Font> = None;
+static DEFAULT_FONT_SIZE: f32 = 24.0;
+
+fn init_default_font() {
+    let font_bytes: &[u8] = include_bytes!("../assets/fonts/Orbitron Medium.otf") as &[u8];
+    let font_settings: FontSettings = FontSettings {
+        scale: DEFAULT_FONT_SIZE,
+        ..FontSettings::default()
+    };
+    unsafe {
+        DEFAULT_FONT = Some(Font::from_bytes(font_bytes, font_settings).unwrap());
+    }
+}
+
+//------------------------------------------- Maths ------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+impl Add<f32> for Vec2 {
+    type Output = Vec2;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Self::Output::new(self.x + rhs, self.y + rhs)
+    }
+}
+
+pub fn clamp(min: f32, value: f32, max: f32) -> f32 {
     if value < min {
-        return min;
+        min
     } else if value > max {
-        return max;
+        max
     } else {
         value
     }
 }
 
+pub fn lerp(src: f32, dst: f32, t: f32) -> f32 {
+    src + (dst - src) * t
+}
+
 #[cfg(test)]
-mod tests {
+mod maths_tests {
     use super::*;
 
     #[test]
-    fn pixel_has_32bit_argb_representation() {
-        let pixel = Pixel::from_rgba(0.8, 0.2, 0.2, 0.5);
-
-        let expected: u32 = (128 << 24) | (204 << 16) | (51 << 8) | 51;
-
-        assert_eq!(Into::<u32>::into(pixel), expected);
-    }
-
-    #[test]
-    fn input_key_is_not_held() {
-        let input = InputState::new();
-
-        assert_eq!(input.is_key_held(Key::Up), false);
-    }
-
-    #[test]
-    fn input_key_is_held() {
-        let mut input = InputState::new();
-        input.keys.insert(Key::Up, KeyState { is_held: true });
-
-        assert_eq!(input.is_key_held(Key::Up), true);
-    }
-
-    #[test]
-    fn clamp_value_between_min_max_is_value() {
-        let value = clamp(1.0, 2.0, 3.0);
-
-        assert_eq!(value, 2.0);
+    fn clamp_value_between_min_and_max_is_value() {
+        assert_eq!(10.0, clamp(0.0, 10.0, 20.0));
     }
 
     #[test]
     fn clamp_value_less_than_min_is_min() {
-        let value = clamp(-1.0, -2.0, 3.0);
-
-        assert_eq!(value, -1.0);
+        assert_eq!(0.0, clamp(0.0, -10.0, 20.0));
     }
 
     #[test]
-    fn clamp_value_more_than_max_is_max() {
-        let value = clamp(1.0, 5.0, 3.0);
-
-        assert_eq!(value, 3.0);
+    fn clamp_value_greater_than_max_is_max() {
+        assert_eq!(20.0, clamp(0.0, 30.0, 20.0));
     }
+
+    #[test]
+    fn scale_vec2_scales_all_components() {
+        let vec = Vec2::new(3.0, 5.0);
+
+        assert_eq!(Vec2::new(7.0, 9.0), vec + 4.0);
+    }
+
+    #[test]
+    fn lerp_between_two_values() {
+        let a = 10.0;
+        let b = 50.0;
+        let t = 0.75;
+
+        assert_eq!(lerp(a, b, t), 40.0);
+    }
+}
+
+//------------------------------------------- Clock ------------------------------------------------
+#[derive(Default)]
+pub struct Clock {
+    delta: Duration,
+    start: Option<Instant>,
+}
+
+impl Clock {
+    pub fn delta(&self) -> Duration {
+        self.delta
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        match self.start {
+            Some(start) => start.elapsed(),
+            None => Duration::from_secs_f32(0.0),
+        }
+    }
+
+    pub fn tick(&mut self) {
+        let end = Instant::now();
+        if let Some(start) = self.start {
+            self.delta = end - start;
+        }
+        self.start = Some(end);
+    }
+}
+
+//------------------------------------------- Utils ------------------------------------------------
+static mut SLEEP_TOLERANCE: Duration = Duration::from_micros(0);
+
+#[derive(Debug, Error)]
+pub enum SleepError {
+    #[error("sleep exceeded target duration by {:?}", .0)]
+    TargetDurationExceeded(Duration),
+}
+
+fn sleep(duration: Duration) -> Result<(), SleepError> {
+    let mut clock = Clock::default();
+    clock.tick();
+
+    let tolerance = unsafe { SLEEP_TOLERANCE };
+
+    if tolerance < duration {
+        if duration - tolerance > Duration::from_secs_f32(0.0) {
+            std::thread::sleep(duration - tolerance);
+        }
+
+        let elapsed = clock.elapsed();
+        if elapsed > duration {
+            unsafe {
+                SLEEP_TOLERANCE += Duration::from_micros(100);
+            }
+            return Err(SleepError::TargetDurationExceeded(elapsed - duration));
+        }
+    }
+
+    while clock.elapsed() < duration {
+        // Eat CPU cycles.
+    }
+
+    Ok(())
 }

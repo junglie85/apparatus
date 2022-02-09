@@ -6,6 +6,10 @@ edition = "2021"
 [dependencies]
 fontdue = "0.6"
 minifb = "0.20"
+thiserror = "1"
+
+[dev-dependencies]
+anyhow = "1"
 
 [[example]]
 name = "retro-racer"
