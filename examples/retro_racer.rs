@@ -39,7 +39,7 @@ impl Game for RetroRacer {
     }
 
     fn on_render(&self, gfx: &mut impl Gfx) {
-        gfx.clear(Color::rgba(0.8, 0.2, 0.8, 0.0));
+        gfx.clear(Color::rgba(204, 51, 204, 0));
         gfx.put_pixel(self.position, Color::BLACK);
         gfx.fill_rect(
             self.position + 10.0,

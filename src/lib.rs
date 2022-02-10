@@ -1,4 +1,5 @@
 use fontdue::{Font as NativeFont, FontSettings};
+use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::time::{Duration, Instant};
 use thiserror::Error;
@@ -297,44 +298,62 @@ fn process_input(window: &Window) -> EngineInput {
 //------------------------------------------ Graphics ----------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Color(f32, f32, f32, f32); // (r, g, b, a)
+pub struct Color([u8; 4]); // [a, r, g, b]
 
 impl Color {
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self(r, g, b, a)
+    pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self([a, r, g, b])
     }
 
-    pub fn rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
-        let r = r as f32 / 255.0;
-        let g = g as f32 / 255.0;
-        let b = b as f32 / 255.0;
-        let a = a as f32 / 255.0;
+    pub const fn r(&self) -> u8 {
+        self.0[1]
+    }
 
-        Self::rgba(r, g, b, a)
+    pub const fn g(&self) -> u8 {
+        self.0[2]
+    }
+
+    pub const fn b(&self) -> u8 {
+        self.0[3]
+    }
+
+    pub const fn a(&self) -> u8 {
+        self.0[0]
     }
 
     pub fn lerp(&self, color: Self) -> Self {
-        let r = lerp(self.0, color.0, self.3);
-        let g = lerp(self.1, color.1, self.3);
-        let b = lerp(self.2, color.2, self.3);
+        let t = self.a() as f32 / 255.0;
+        let r = (lerp(self.r() as f32 / 255.0, color.r() as f32 / 255.0, t) * 255.0) as u8;
+        let g = (lerp(self.g() as f32 / 255.0, color.g() as f32 / 255.0, t) * 255.0) as u8;
+        let b = (lerp(self.b() as f32 / 255.0, color.b() as f32 / 255.0, t) * 255.0) as u8;
 
-        Self::rgba(r, g, b, 0.0)
+        Self::rgba(r, g, b, 0)
     }
 
-    pub const BLACK: Self = Self::rgba(0.0, 0.0, 0.0, 0.0);
-    pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 0.0);
-    pub const SILVER: Self = Self::rgba(0.7529411765, 0.7529411765, 0.7529411765, 0.0);
-    pub const YELLOW: Self = Self::rgba(1.0, 1.0, 0.0, 0.0);
+    pub const BLACK: Self = Self::rgba(0, 0, 0, 0);
+    pub const BLUE: Self = Self::rgba(0, 0, 255, 0);
+    pub const RED: Self = Self::rgba(255, 0, 0, 0);
+    pub const SILVER: Self = Self::rgba(192, 192, 192, 0);
+    pub const WHITE: Self = Self::rgba(255, 255, 255, 0);
+    pub const YELLOW: Self = Self::rgba(255, 255, 0, 0);
 }
 
 impl From<Color> for u32 {
     fn from(color: Color) -> Self {
-        let a = ((color.3 * 255.0) as u32) << 24;
-        let r = ((color.0 * 255.0) as u32) << 16;
-        let g = ((color.1 * 255.0) as u32) << 8;
-        let b = (color.2 * 255.0) as u32;
+        u32::from_be_bytes(color.0)
+    }
+}
 
-        a | r | g | b
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Color{{r={:<3} g={:<3} b={:<3} a={:<3}}}",
+            self.r(),
+            self.g(),
+            self.b(),
+            self.a()
+        )
     }
 }
 
@@ -495,33 +514,35 @@ mod color_tests {
     use super::*;
 
     #[test]
+    fn color_has_rgba_components() {
+        let color = Color::rgba(50, 100, 150, 200);
+
+        assert_eq!(50, color.r());
+        assert_eq!(100, color.g());
+        assert_eq!(150, color.b());
+        assert_eq!(200, color.a());
+    }
+
+    #[test]
     fn color_can_be_represented_in_argb_by_u32() {
-        let color = Color::rgba(0.25, 0.5, 0.75, 1.0);
-        let expected = (255 << 24) | ((63.75 as u32) << 16) | ((127.5 as u32) << 8) | 191.25 as u32;
+        let color = Color::rgba(64, 128, 192, 255);
+        let expected = (255 << 24) | (64 << 16) | (128 << 8) | 192;
 
         assert_eq!(expected, Into::<u32>::into(color));
     }
 
     #[test]
-    fn color_can_be_created_from_u8_components() {
-        let color = Color::rgba_u8(255, 255, 255, 0);
-        let expected = Color::rgba(1.0, 1.0, 1.0, 0.0);
-
-        assert_eq!(expected, color);
-    }
-
-    #[test]
     fn linear_blend_red_color_no_alpha_with_blue_color_is_red() {
-        let red = Color::rgba(1.0, 0.0, 0.0, 0.0);
-        let blue = Color::rgba(0.0, 0.0, 1.0, 0.0);
+        let red = Color::RED;
+        let blue = Color::BLUE;
 
         assert_eq!(red.lerp(blue), red);
     }
 
     #[test]
     fn linear_blend_red_color_full_alpha_with_blue_color_is_blue() {
-        let red = Color::rgba(1.0, 0.0, 0.0, 1.0);
-        let blue = Color::rgba(0.0, 0.0, 1.0, 0.0);
+        let red = Color::rgba(255, 0, 0, 255);
+        let blue = Color::BLUE;
 
         assert_eq!(red.lerp(blue), blue);
     }
@@ -581,10 +602,10 @@ impl Gfx for EngineGfx {
 
         if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height - 1.0 {
             let dst = self.buffer.data[(y * self.width + x) as usize];
-            let dst_a = ((dst >> 24) & 255) as f32 / 255.0;
-            let dst_r = ((dst >> 16) & 255) as f32 / 255.0;
-            let dst_g = ((dst >> 8) & 255) as f32 / 255.0;
-            let dst_b = (dst & 255) as f32 / 255.0;
+            let dst_a = ((dst >> 24) & 255) as u8;
+            let dst_r = ((dst >> 16) & 255) as u8;
+            let dst_g = ((dst >> 8) & 255) as u8;
+            let dst_b = (dst & 255) as u8;
             let dst = Color::rgba(dst_r, dst_g, dst_b, dst_a);
 
             self.buffer.data[(y * self.width + x) as usize] = color.lerp(dst).into();
@@ -620,10 +641,10 @@ impl Gfx for EngineGfx {
             for y in 0..metrics.height {
                 for x in 0..metrics.width {
                     let font_color = Color::rgba(
-                        color.0,
-                        color.1,
-                        color.2,
-                        1.0 - (bitmap[y * metrics.width + x] as f32 / 255.0),
+                        color.r(),
+                        color.g(),
+                        color.b(),
+                        255 - bitmap[y * metrics.width + x],
                     );
                     self.put_pixel(
                         Vec2::new(
