@@ -39,14 +39,19 @@ impl Game for RetroRacer {
     }
 
     fn on_render(&self, gfx: &mut impl Gfx) {
-        gfx.clear(Color::rgba(0.8, 0.2, 0.2, 0.0));
-        gfx.draw(self.position, Color::BLACK);
-        gfx.fill(
+        gfx.clear(Color::rgba(0.8, 0.2, 0.8, 0.0));
+        gfx.put_pixel(self.position, Color::BLACK);
+        gfx.fill_rect(
             self.position + 10.0,
             self.position + 10.0 + 4.0,
             Color::BLACK,
         );
-        gfx.text("Firefly", Vec2::new(50.0, self.height as f32 - 50.0));
+        gfx.draw_string(
+            "Retro Racer!",
+            Vec2::new(50.0, self.height as f32 - 50.0),
+            Color::YELLOW,
+            24.0,
+        );
     }
 }
 
