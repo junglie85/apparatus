@@ -1,11 +1,12 @@
 use anyhow::Result;
-use firefly::{clamp, Color, Game, GameEngine, Gfx, Input, Key, Vec2};
+use firefly::{clamp, Color, Game, GameEngine, Gfx, Input, Key, Sprite, Vec2};
 use std::time::Duration;
 
 struct RetroRacer {
     width: usize,
     height: usize,
     position: Vec2,
+    sprites: Vec<Sprite>,
 }
 
 impl RetroRacer {
@@ -14,11 +15,18 @@ impl RetroRacer {
             width,
             height,
             position: Vec2::new(100.0, 100.0),
+            sprites: Vec::new(),
         }
     }
 }
 
 impl Game for RetroRacer {
+    fn on_create(&mut self) {
+        let sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
+        let sprite = Sprite::from_bytes(sprite_bytes);
+        self.sprites.push(sprite);
+    }
+
     fn on_update(&mut self, input: &impl Input, dt: Duration) {
         let distance = 100.0 * dt.as_secs_f32();
         if input.is_key_held(Key::Up) {
@@ -52,6 +60,7 @@ impl Game for RetroRacer {
             Color::YELLOW,
             24.0,
         );
+        gfx.draw_sprite(self.sprites.get(0).unwrap(), Vec2::new(200.0, 200.0));
     }
 }
 

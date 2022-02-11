@@ -1,10 +1,15 @@
 use fontdue::{Font as NativeFont, FontSettings};
-use std::fmt::{Display, Formatter};
+use image::io::Reader;
+use image::{ColorType, GenericImageView, Pixel};
+use std::fmt::{Debug, Display, Formatter};
+use std::io::Cursor;
 use std::ops::Add;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
 pub trait Game {
+    fn on_create(&mut self);
+
     fn on_update(&mut self, input: &impl Input, dt: Duration);
 
     fn on_render(&self, gfx: &mut impl Gfx);
@@ -94,6 +99,8 @@ where
         let mut window = Window::new(self.name, self.window_dimensions)?;
         let frame_buffer = FrameBuffer::new(self.window_dimensions);
         let mut gfx = EngineGfx::new(self.window_dimensions, frame_buffer);
+
+        game.on_create();
 
         let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
 
@@ -297,7 +304,7 @@ fn process_input(window: &Window) -> EngineInput {
 
 //------------------------------------------ Graphics ----------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Color([u8; 4]); // [a, r, g, b]
 
 impl Color {
@@ -321,26 +328,40 @@ impl Color {
         self.0[0]
     }
 
-    pub fn lerp(&self, color: Self) -> Self {
-        let t = self.a() as f32 / 255.0;
-        let r = (lerp(self.r() as f32 / 255.0, color.r() as f32 / 255.0, t) * 255.0) as u8;
-        let g = (lerp(self.g() as f32 / 255.0, color.g() as f32 / 255.0, t) * 255.0) as u8;
-        let b = (lerp(self.b() as f32 / 255.0, color.b() as f32 / 255.0, t) * 255.0) as u8;
+    pub fn linear_blend(src: Self, dst: Self) -> Self {
+        let t = src.a() as f32 / 255.0;
+        let r = (Color::interpolate_scalar(src.r() as f32 / 255.0, dst.r() as f32 / 255.0, t)
+            * 255.0) as u8;
+        let g = (Color::interpolate_scalar(src.g() as f32 / 255.0, dst.g() as f32 / 255.0, t)
+            * 255.0) as u8;
+        let b = (Color::interpolate_scalar(src.b() as f32 / 255.0, dst.b() as f32 / 255.0, t)
+            * 255.0) as u8;
 
-        Self::rgba(r, g, b, 0)
+        Self::rgba(r, g, b, 255)
     }
 
-    pub const BLACK: Self = Self::rgba(0, 0, 0, 0);
-    pub const BLUE: Self = Self::rgba(0, 0, 255, 0);
-    pub const RED: Self = Self::rgba(255, 0, 0, 0);
-    pub const SILVER: Self = Self::rgba(192, 192, 192, 0);
-    pub const WHITE: Self = Self::rgba(255, 255, 255, 0);
-    pub const YELLOW: Self = Self::rgba(255, 255, 0, 0);
+    pub fn interpolate_scalar(src: f32, dst: f32, t: f32) -> f32 {
+        dst * (1.0 - t) + src * t
+        // Or: `dst + (src - dst) * t`.
+    }
+
+    pub const BLACK: Self = Self::rgba(0, 0, 0, 255);
+    pub const BLUE: Self = Self::rgba(0, 0, 255, 255);
+    pub const RED: Self = Self::rgba(255, 0, 0, 255);
+    pub const SILVER: Self = Self::rgba(192, 192, 192, 255);
+    pub const WHITE: Self = Self::rgba(255, 255, 255, 255);
+    pub const YELLOW: Self = Self::rgba(255, 255, 0, 255);
 }
 
 impl From<Color> for u32 {
     fn from(color: Color) -> Self {
         u32::from_be_bytes(color.0)
+    }
+}
+
+impl Debug for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -359,153 +380,151 @@ impl Display for Color {
 
 pub mod colors {
     pub mod css {
-        // aliceblue	#f0f8ff	240,248,255
-        //     antiquewhite	#faebd7	250,235,215
-        //     aqua	#00ffff	0,255,255
-        //     aquamarine	#7fffd4	127,255,212
-        //     azure	#f0ffff	240,255,255
-        //     beige	#f5f5dc	245,245,220
-        //     bisque	#ffe4c4	255,228,196
-        //     black	#000000	0,0,0
-        //     blanchedalmond	#ffebcd	255,235,205
-        //     blue	#0000ff	0,0,255
-        //     blueviolet	#8a2be2	138,43,226
-        //     brown	#a52a2a	165,42,42
-        //     burlywood	#deb887	222,184,135
-        //     cadetblue	#5f9ea0	95,158,160
-        //     chartreuse	#7fff00	127,255,0
-        //     chocolate	#d2691e	210,105,30
-        //     coral	#ff7f50	255,127,80
-        //     cornflowerblue	#6495ed	100,149,237
-        //     cornsilk	#fff8dc	255,248,220
-        //     crimson	#dc143c	220,20,60
-        //     cyan	#00ffff	0,255,255
-        //     darkblue	#00008b	0,0,139
-        //     darkcyan	#008b8b	0,139,139
-        //     darkgoldenrod	#b8860b	184,134,11
-        //     darkgray	#a9a9a9	169,169,169
-        //     darkgreen	#006400	0,100,0
-        //     darkgrey	#a9a9a9	169,169,169
-        //     darkkhaki	#bdb76b	189,183,107
-        //     darkmagenta	#8b008b	139,0,139
-        //     darkolivegreen	#556b2f	85,107,47
-        //     darkorange	#ff8c00	255,140,0
-        //     darkorchid	#9932cc	153,50,204
-        //     darkred	#8b0000	139,0,0
-        //     darksalmon	#e9967a	233,150,122
-        //     darkseagreen	#8fbc8f	143,188,143
-        //     darkslateblue	#483d8b	72,61,139
-        //     darkslategray	#2f4f4f	47,79,79
-        //     darkslategrey	#2f4f4f	47,79,79
-        //     darkturquoise	#00ced1	0,206,209
-        //     darkviolet	#9400d3	148,0,211
-        //     deeppink	#ff1493	255,20,147
-        //     deepskyblue	#00bfff	0,191,255
-        //     dimgray	#696969	105,105,105
-        //     dimgrey	#696969	105,105,105
-        //     dodgerblue	#1e90ff	30,144,255
-        //     firebrick	#b22222	178,34,34
-        //     floralwhite	#fffaf0	255,250,240
-        //     forestgreen	#228b22	34,139,34
-        //     fuchsia	#ff00ff	255,0,255
-        //     gainsboro	#dcdcdc	220,220,220
-        //     ghostwhite	#f8f8ff	248,248,255
-        //     gold	#ffd700	255,215,0
-        //     goldenrod	#daa520	218,165,32
-        //     gray	#808080	128,128,128
-        //     green	#008000	0,128,0
-        //     greenyellow	#adff2f	173,255,47
-        //     grey	#808080	128,128,128
-        //     honeydew	#f0fff0	240,255,240
-        //     hotpink	#ff69b4	255,105,180
-        //     indianred	#cd5c5c	205,92,92
-        //     indigo	#4b0082	75,0,130
-        //     ivory	#fffff0	255,255,240
-        //     khaki	#f0e68c	240,230,140
-        //     lavender	#e6e6fa	230,230,250
-        //     lavenderblush	#fff0f5	255,240,245
-        //     lawngreen	#7cfc00	124,252,0
-        //     lemonchiffon	#fffacd	255,250,205
-        //     lightblue	#add8e6	173,216,230
-        //     lightcoral	#f08080	240,128,128
-        //     lightcyan	#e0ffff	224,255,255
-        //     lightgoldenrodyellow	#fafad2	250,250,210
-        //     lightgray	#d3d3d3	211,211,211
-        //     lightgreen	#90ee90	144,238,144
-        //     lightgrey	#d3d3d3	211,211,211
-        //     lightpink	#ffb6c1	255,182,193
-        //     lightsalmon	#ffa07a	255,160,122
-        //     lightseagreen	#20b2aa	32,178,170
-        //     lightskyblue	#87cefa	135,206,250
-        //     lightslategray	#778899	119,136,153
-        //     lightslategrey	#778899	119,136,153
-        //     lightsteelblue	#b0c4de	176,196,222
-        //     lightyellow	#ffffe0	255,255,224
-        //     lime	#00ff00	0,255,0
-        //     limegreen	#32cd32	50,205,50
-        //     linen	#faf0e6	250,240,230
-        //     magenta	#ff00ff	255,0,255
-        //     maroon	#800000	128,0,0
-        //     mediumaquamarine	#66cdaa	102,205,170
-        //     mediumblue	#0000cd	0,0,205
-        //     mediumorchid	#ba55d3	186,85,211
-        //     mediumpurple	#9370db	147,112,219
-        //     mediumseagreen	#3cb371	60,179,113
-        //     mediumslateblue	#7b68ee	123,104,238
-        //     mediumspringgreen	#00fa9a	0,250,154
-        //     mediumturquoise	#48d1cc	72,209,204
-        //     mediumvioletred	#c71585	199,21,133
-        //     midnightblue	#191970	25,25,112
-        //     mintcream	#f5fffa	245,255,250
-        //     mistyrose	#ffe4e1	255,228,225
-        //     moccasin	#ffe4b5	255,228,181
-        //     navajowhite	#ffdead	255,222,173
-        //     navy	#000080	0,0,128
-        //     oldlace	#fdf5e6	253,245,230
-        //     olive	#808000	128,128,0
-        //     olivedrab	#6b8e23	107,142,35
-        //     orange	#ffa500	255,165,0
-        //     orangered	#ff4500	255,69,0
-        //     orchid	#da70d6	218,112,214
-        //     palegoldenrod	#eee8aa	238,232,170
-        //     palegreen	#98fb98	152,251,152
-        //     paleturquoise	#afeeee	175,238,238
-        //     palevioletred	#db7093	219,112,147
-        //     papayawhip	#ffefd5	255,239,213
-        //     peachpuff	#ffdab9	255,218,185
-        //     peru	#cd853f	205,133,63
-        //     pink	#ffc0cb	255,192,203
-        //     plum	#dda0dd	221,160,221
-        //     powderblue	#b0e0e6	176,224,230
-        //     purple	#800080	128,0,128
-        //     red	#ff0000	255,0,0
-        //     rosybrown	#bc8f8f	188,143,143
-        //     royalblue	#4169e1	65,105,225
-        //     saddlebrown	#8b4513	139,69,19
-        //     salmon	#fa8072	250,128,114
-        //     sandybrown	#f4a460	244,164,96
-        //     seagreen	#2e8b57	46,139,87
-        //     seashell	#fff5ee	255,245,238
-        //     sienna	#a0522d	160,82,45
-        //     silver	#c0c0c0	192,192,192
-        //     skyblue	#87ceeb	135,206,235
-        //     slateblue	#6a5acd	106,90,205
-        //     slategray	#708090	112,128,144
-        //     slategrey	#708090	112,128,144
-        //     snow	#fffafa	255,250,250
-        //     springgreen	#00ff7f	0,255,127
-        //     steelblue	#4682b4	70,130,180
-        //     tan	#d2b48c	210,180,140
-        //     teal	#008080	0,128,128
-        //     thistle	#d8bfd8	216,191,216
-        //     tomato	#ff6347	255,99,71
-        //     turquoise	#40e0d0	64,224,208
-        //     violet	#ee82ee	238,130,238
-        //     wheat	#f5deb3	245,222,179
-        //     white	#ffffff	255,255,255
-        //     whitesmoke	#f5f5f5	245,245,245
-        //     yellow	#ffff00	255,255,0
-        //     yellowgreen	#9acd32	154,205,50
+        use crate::Color;
+
+        pub const ALICEBLUE: Color = Color::rgba(240, 248, 255, 255);
+        pub const ANTIQUEWHITE: Color = Color::rgba(250, 235, 215, 255);
+        pub const AQUA: Color = Color::rgba(0, 255, 255, 255);
+        pub const AQUAMARINE: Color = Color::rgba(127, 255, 212, 255);
+        pub const AZURE: Color = Color::rgba(240, 255, 255, 255);
+        pub const BEIGE: Color = Color::rgba(245, 245, 220, 255);
+        pub const BISQUE: Color = Color::rgba(255, 228, 196, 255);
+        pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
+        pub const BLANCHEDALMOND: Color = Color::rgba(255, 235, 205, 255);
+        pub const BLUE: Color = Color::rgba(0, 0, 255, 255);
+        pub const BLUEVIOLET: Color = Color::rgba(138, 43, 226, 255);
+        pub const BROWN: Color = Color::rgba(165, 42, 42, 255);
+        pub const BURLYWOOD: Color = Color::rgba(222, 184, 135, 255);
+        pub const CADETBLUE: Color = Color::rgba(95, 158, 160, 255);
+        pub const CHARTREUSE: Color = Color::rgba(127, 255, 0, 255);
+        pub const CHOCOLATE: Color = Color::rgba(210, 105, 30, 255);
+        pub const CORAL: Color = Color::rgba(255, 127, 80, 255);
+        pub const CORNFLOWERBLUE: Color = Color::rgba(100, 149, 237, 255);
+        pub const CORNSILK: Color = Color::rgba(255, 248, 220, 255);
+        pub const CRIMSON: Color = Color::rgba(220, 20, 60, 255);
+        pub const CYAN: Color = Color::rgba(0, 255, 255, 255);
+        pub const DARKBLUE: Color = Color::rgba(0, 0, 139, 255);
+        pub const DARKCYAN: Color = Color::rgba(0, 139, 139, 255);
+        pub const DARKGOLDENROD: Color = Color::rgba(184, 134, 11, 255);
+        pub const DARKGRAY: Color = Color::rgba(169, 169, 169, 255);
+        pub const DARKGREEN: Color = Color::rgba(0, 100, 0, 255);
+        pub const DARKGREY: Color = Color::rgba(169, 169, 169, 255);
+        pub const DARKKHAKI: Color = Color::rgba(189, 183, 107, 255);
+        pub const DARKMAGENTA: Color = Color::rgba(139, 0, 139, 255);
+        pub const DARKOLIVEGREEN: Color = Color::rgba(85, 107, 47, 255);
+        pub const DARKORANGE: Color = Color::rgba(255, 140, 0, 255);
+        pub const DARKORCHID: Color = Color::rgba(153, 50, 204, 255);
+        pub const DARKRED: Color = Color::rgba(139, 0, 0, 255);
+        pub const DARKSALMON: Color = Color::rgba(233, 150, 122, 255);
+        pub const DARKSEAGREEN: Color = Color::rgba(143, 188, 143, 255);
+        pub const DARKSLATEBLUE: Color = Color::rgba(72, 61, 139, 255);
+        pub const DARKSLATEGRAY: Color = Color::rgba(47, 79, 79, 255);
+        pub const DARKTURQUOISE: Color = Color::rgba(0, 206, 209, 255);
+        pub const DARKVIOLET: Color = Color::rgba(148, 0, 211, 255);
+        pub const DEEPPINK: Color = Color::rgba(255, 20, 147, 255);
+        pub const DEEPSKYBLUE: Color = Color::rgba(0, 191, 255, 255);
+        pub const DIMGRAY: Color = Color::rgba(105, 105, 105, 255);
+        pub const DODGERBLUE: Color = Color::rgba(30, 144, 255, 255);
+        pub const FIREBRICK: Color = Color::rgba(178, 34, 34, 255);
+        pub const FLORALWHITE: Color = Color::rgba(255, 250, 240, 255);
+        pub const FORESTGREEN: Color = Color::rgba(34, 139, 34, 255);
+        pub const FUCHSIA: Color = Color::rgba(255, 0, 255, 255);
+        pub const GAINSBORO: Color = Color::rgba(220, 220, 220, 255);
+        pub const GHOSTWHITE: Color = Color::rgba(248, 248, 255, 255);
+        pub const GOLD: Color = Color::rgba(255, 215, 0, 255);
+        pub const GOLDENROD: Color = Color::rgba(218, 165, 32, 255);
+        pub const GRAY: Color = Color::rgba(128, 128, 128, 255);
+        pub const GREEN: Color = Color::rgba(0, 128, 0, 255);
+        pub const GREENYELLOW: Color = Color::rgba(173, 255, 47, 255);
+        pub const GREY: Color = Color::rgba(128, 128, 128, 255);
+        pub const HONEYDEW: Color = Color::rgba(240, 255, 240, 255);
+        pub const HOTPINK: Color = Color::rgba(255, 105, 180, 255);
+        pub const INDIANRED: Color = Color::rgba(205, 92, 92, 255);
+        pub const INDIGO: Color = Color::rgba(75, 0, 130, 255);
+        pub const IVORY: Color = Color::rgba(255, 255, 240, 255);
+        pub const KHAKI: Color = Color::rgba(240, 230, 140, 255);
+        pub const LAVENDER: Color = Color::rgba(230, 230, 250, 255);
+        pub const LAVENDERBLUSH: Color = Color::rgba(255, 240, 245, 255);
+        pub const LAWNGREEN: Color = Color::rgba(124, 252, 0, 255);
+        pub const LEMONCHIFFON: Color = Color::rgba(255, 250, 205, 255);
+        pub const LIGHTBLUE: Color = Color::rgba(173, 216, 230, 255);
+        pub const LIGHTCORAL: Color = Color::rgba(240, 128, 128, 255);
+        pub const LIGHTCYAN: Color = Color::rgba(224, 255, 255, 255);
+        pub const LIGHTGOLDENRODYELLOW: Color = Color::rgba(250, 250, 210, 255);
+        pub const LIGHTGRAY: Color = Color::rgba(211, 211, 211, 255);
+        pub const LIGHTGREEN: Color = Color::rgba(144, 238, 144, 255);
+        pub const LIGHTGREY: Color = Color::rgba(211, 211, 211, 255);
+        pub const LIGHTPINK: Color = Color::rgba(255, 182, 193, 255);
+        pub const LIGHTSALMON: Color = Color::rgba(255, 160, 122, 255);
+        pub const LIGHTSEAGREEN: Color = Color::rgba(32, 178, 170, 255);
+        pub const LIGHTSKYBLUE: Color = Color::rgba(135, 206, 250, 255);
+        pub const LIGHTSLATEGRAY: Color = Color::rgba(119, 136, 153, 255);
+        pub const LIGHTSTEELBLUE: Color = Color::rgba(176, 196, 222, 255);
+        pub const LIGHTYELLOW: Color = Color::rgba(255, 255, 224, 255);
+        pub const LIME: Color = Color::rgba(0, 255, 0, 255);
+        pub const LIMEGREEN: Color = Color::rgba(50, 205, 50, 255);
+        pub const LINEN: Color = Color::rgba(250, 240, 230, 255);
+        pub const MAGENTA: Color = Color::rgba(255, 0, 255, 255);
+        pub const MAROON: Color = Color::rgba(128, 0, 0, 255);
+        pub const MEDIUMAQUAMARINE: Color = Color::rgba(102, 205, 170, 255);
+        pub const MEDIUMBLUE: Color = Color::rgba(0, 0, 205, 255);
+        pub const MEDIUMORCHID: Color = Color::rgba(186, 85, 211, 255);
+        pub const MEDIUMPURPLE: Color = Color::rgba(147, 112, 219, 255);
+        pub const MEDIUMSEAGREEN: Color = Color::rgba(60, 179, 113, 255);
+        pub const MEDIUMSLATEBLUE: Color = Color::rgba(123, 104, 238, 255);
+        pub const MEDIUMSPRINGGREEN: Color = Color::rgba(0, 250, 154, 255);
+        pub const MEDIUMTURQUOISE: Color = Color::rgba(72, 209, 204, 255);
+        pub const MEDIUMVIOLETRED: Color = Color::rgba(199, 21, 133, 255);
+        pub const MIDNIGHTBLUE: Color = Color::rgba(25, 25, 112, 255);
+        pub const MINTCREAM: Color = Color::rgba(245, 255, 250, 255);
+        pub const MISTYROSE: Color = Color::rgba(255, 228, 225, 255);
+        pub const MOCCASIN: Color = Color::rgba(255, 228, 181, 255);
+        pub const NAVAJOWHITE: Color = Color::rgba(255, 222, 173, 255);
+        pub const NAVY: Color = Color::rgba(0, 0, 128, 255);
+        pub const OLDLACE: Color = Color::rgba(253, 245, 230, 255);
+        pub const OLIVE: Color = Color::rgba(128, 128, 0, 255);
+        pub const OLIVEDRAB: Color = Color::rgba(107, 142, 35, 255);
+        pub const ORANGE: Color = Color::rgba(255, 165, 0, 255);
+        pub const ORANGERED: Color = Color::rgba(255, 69, 0, 255);
+        pub const ORCHID: Color = Color::rgba(218, 112, 214, 255);
+        pub const PALEGOLDENROD: Color = Color::rgba(238, 232, 170, 255);
+        pub const PALEGREEN: Color = Color::rgba(152, 251, 152, 255);
+        pub const PALETURQUOISE: Color = Color::rgba(175, 238, 238, 255);
+        pub const PALEVIOLETRED: Color = Color::rgba(219, 112, 147, 255);
+        pub const PAPAYAWHIP: Color = Color::rgba(255, 239, 213, 255);
+        pub const PEACHPUFF: Color = Color::rgba(255, 218, 185, 255);
+        pub const PERU: Color = Color::rgba(205, 133, 63, 255);
+        pub const PINK: Color = Color::rgba(255, 192, 203, 255);
+        pub const PLUM: Color = Color::rgba(221, 160, 221, 255);
+        pub const POWDERBLUE: Color = Color::rgba(176, 224, 230, 255);
+        pub const PURPLE: Color = Color::rgba(128, 0, 128, 255);
+        pub const RED: Color = Color::rgba(255, 0, 0, 255);
+        pub const ROSYBROWN: Color = Color::rgba(188, 143, 143, 255);
+        pub const ROYALBLUE: Color = Color::rgba(65, 105, 225, 255);
+        pub const SADDLEBROWN: Color = Color::rgba(139, 69, 19, 255);
+        pub const SALMON: Color = Color::rgba(250, 128, 114, 255);
+        pub const SANDYBROWN: Color = Color::rgba(244, 164, 96, 255);
+        pub const SEAGREEN: Color = Color::rgba(46, 139, 87, 255);
+        pub const SEASHELL: Color = Color::rgba(255, 245, 238, 255);
+        pub const SIENNA: Color = Color::rgba(160, 82, 45, 255);
+        pub const SILVER: Color = Color::rgba(192, 192, 192, 255);
+        pub const SKYBLUE: Color = Color::rgba(135, 206, 235, 255);
+        pub const SLATEBLUE: Color = Color::rgba(106, 90, 205, 255);
+        pub const SLATEGRAY: Color = Color::rgba(112, 128, 144, 255);
+        pub const SNOW: Color = Color::rgba(255, 250, 250, 255);
+        pub const SPRINGGREEN: Color = Color::rgba(0, 255, 127, 255);
+        pub const STEELBLUE: Color = Color::rgba(70, 130, 180, 255);
+        pub const TAN: Color = Color::rgba(210, 180, 140, 255);
+        pub const TEAL: Color = Color::rgba(0, 128, 128, 255);
+        pub const THISTLE: Color = Color::rgba(216, 191, 216, 255);
+        pub const TOMATO: Color = Color::rgba(255, 99, 71, 255);
+        pub const TURQUOISE: Color = Color::rgba(64, 224, 208, 255);
+        pub const VIOLET: Color = Color::rgba(238, 130, 238, 255);
+        pub const WHEAT: Color = Color::rgba(245, 222, 179, 255);
+        pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
+        pub const WHITESMOKE: Color = Color::rgba(245, 245, 245, 255);
+        pub const YELLOW: Color = Color::rgba(255, 255, 0, 255);
+        pub const YELLOWGREEN: Color = Color::rgba(154, 205, 50, 255);
     }
 }
 
@@ -532,19 +551,65 @@ mod color_tests {
     }
 
     #[test]
-    fn linear_blend_red_color_no_alpha_with_blue_color_is_red() {
-        let red = Color::RED;
-        let blue = Color::BLUE;
+    fn interpolate_between_two_values() {
+        let a = 10.0;
+        let b = 50.0;
+        let t = 0.75;
 
-        assert_eq!(red.lerp(blue), red);
+        assert_eq!(Color::interpolate_scalar(a, b, t), 20.0);
     }
 
     #[test]
-    fn linear_blend_red_color_full_alpha_with_blue_color_is_blue() {
-        let red = Color::rgba(255, 0, 0, 255);
+    fn linear_blend_red_color_full_opacity_onto_blue_color_is_red() {
+        let red = Color::RED;
         let blue = Color::BLUE;
 
-        assert_eq!(red.lerp(blue), blue);
+        assert_eq!(Color::linear_blend(red, blue), red);
+    }
+
+    #[test]
+    fn linear_blend_red_color_full_transparency_onto_blue_color_is_blue() {
+        let red = Color::rgba(255, 0, 0, 0);
+        let blue = Color::BLUE;
+
+        assert_eq!(Color::linear_blend(red, blue), blue);
+    }
+}
+
+pub struct Sprite {
+    width: u32,
+    height: u32,
+    // data: Vec<u8>,
+    pixels: Vec<Color>,
+}
+
+impl Sprite {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let cursor = Cursor::new(bytes);
+        let reader = Reader::new(cursor)
+            .with_guessed_format()
+            .expect("Cursor io never fails");
+        let image = reader.decode().unwrap();
+
+        let (width, height) = image.dimensions();
+
+        let mut pixels = Vec::with_capacity(width as usize * height as usize);
+        if image.color() == ColorType::Rgba8 {
+            for (_, _, pixel) in image.pixels() {
+                let channels = pixel.channels();
+                let r = channels[0];
+                let g = channels[1];
+                let b = channels[2];
+                let a = channels[3];
+                pixels.push(Color::rgba(r, g, b, a));
+            }
+        }
+
+        Self {
+            width,
+            height,
+            pixels,
+        }
     }
 }
 
@@ -556,6 +621,8 @@ pub trait Gfx {
     fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color);
 
     fn draw_string(&mut self, value: impl AsRef<str>, origin: Vec2, color: Color, size: f32);
+
+    fn draw_sprite(&mut self, sprite: &Sprite, pos: Vec2);
 }
 
 struct EngineGfx {
@@ -600,6 +667,7 @@ impl Gfx for EngineGfx {
         let x = position.x;
         let y = self.height - position.y;
 
+        // TODO: transmute?
         if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height - 1.0 {
             let dst = self.buffer.data[(y * self.width + x) as usize];
             let dst_a = ((dst >> 24) & 255) as u8;
@@ -608,7 +676,8 @@ impl Gfx for EngineGfx {
             let dst_b = (dst & 255) as u8;
             let dst = Color::rgba(dst_r, dst_g, dst_b, dst_a);
 
-            self.buffer.data[(y * self.width + x) as usize] = color.lerp(dst).into();
+            self.buffer.data[(y * self.width + x) as usize] =
+                Color::linear_blend(color, dst).into();
         }
     }
 
@@ -644,7 +713,7 @@ impl Gfx for EngineGfx {
                         color.r(),
                         color.g(),
                         color.b(),
-                        255 - bitmap[y * metrics.width + x],
+                        bitmap[y * metrics.width + x],
                     );
                     self.put_pixel(
                         Vec2::new(
@@ -657,6 +726,17 @@ impl Gfx for EngineGfx {
             }
 
             character_offset_x += metrics.advance_width;
+        }
+    }
+
+    fn draw_sprite(&mut self, sprite: &Sprite, pos: Vec2) {
+        for sprite_y in 0..sprite.height as usize {
+            for sprite_x in 0..sprite.width as usize {
+                let x = pos.x + sprite_x as f32;
+                let y = pos.y + (sprite.height as usize - sprite_y) as f32;
+                let color = sprite.pixels[sprite_y * sprite.width as usize + sprite_x];
+                self.put_pixel(Vec2::new(x, y), color);
+            }
         }
     }
 }
@@ -697,10 +777,6 @@ pub fn clamp(min: f32, value: f32, max: f32) -> f32 {
     }
 }
 
-pub fn lerp(src: f32, dst: f32, t: f32) -> f32 {
-    src + (dst - src) * t
-}
-
 #[cfg(test)]
 mod maths_tests {
     use super::*;
@@ -725,15 +801,6 @@ mod maths_tests {
         let vec = Vec2::new(3.0, 5.0);
 
         assert_eq!(Vec2::new(7.0, 9.0), vec + 4.0);
-    }
-
-    #[test]
-    fn lerp_between_two_values() {
-        let a = 10.0;
-        let b = 50.0;
-        let t = 0.75;
-
-        assert_eq!(lerp(a, b, t), 40.0);
     }
 }
 

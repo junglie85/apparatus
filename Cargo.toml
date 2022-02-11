@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 fontdue = "0.6"
+image = { version = "0.24", default-features = false, features = ["png"] }
 minifb = "0.20"
 thiserror = "1"
 
@@ -13,4 +14,4 @@ anyhow = "1"
 
 [[example]]
 name = "retro-racer"
-path = "examples/retro_racer.rs"
+path = "examples/retro_racer/main.rs"
