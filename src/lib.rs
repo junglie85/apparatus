@@ -611,6 +611,14 @@ impl Sprite {
             pixels,
         }
     }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
 }
 
 pub trait Gfx {
@@ -629,7 +637,7 @@ struct EngineGfx {
     width: f32,
     height: f32,
     buffer: FrameBuffer,
-    default_font: FontWrapper,
+    default_font: Font,
     _default_font_size: f32,
 }
 
@@ -642,7 +650,7 @@ impl EngineGfx {
         };
         let default_font_bytes = include_bytes!("../assets/fonts/Orbitron Medium.otf") as &[u8];
         let default_font =
-            FontWrapper(NativeFont::from_bytes(default_font_bytes, default_font_settings).unwrap());
+            Font(NativeFont::from_bytes(default_font_bytes, default_font_settings).unwrap());
 
         Self {
             width: window_dimensions.x,
@@ -743,7 +751,7 @@ impl Gfx for EngineGfx {
 
 //------------------------------------------- Fonts ------------------------------------------------
 
-pub struct FontWrapper(NativeFont);
+pub struct Font(NativeFont);
 
 //------------------------------------------- Maths ------------------------------------------------
 

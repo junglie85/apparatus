@@ -15,3 +15,11 @@ anyhow = "1"
 [[example]]
 name = "retro-racer"
 path = "examples/retro_racer/main.rs"
+
+[profile.dev]
+opt-level = 3               # Enable all optimisations.
+debug = 2                   # Enable full debug info.
+debug-assertions = true     # Enable debug assert.
+overflow-checks = true      # Enable integer overflow checks.
+lto = "thin"                # Enable some link time optimisations.
+incremental = true          # Enable incremental compilation.
