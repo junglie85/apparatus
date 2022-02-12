@@ -681,7 +681,7 @@ impl Gfx for EngineGfx {
         let y = self.height - position.y;
 
         // TODO: transmute?
-        if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height - 1.0 {
+        if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height {
             let dst = self.buffer.data[(y * self.width + x) as usize];
             let dst_a = ((dst >> 24) & 255) as u8;
             let dst_r = ((dst >> 16) & 255) as u8;
