@@ -1,6 +1,8 @@
+use flexi_logger::{FileSpec, FlexiLoggerError, Logger, WriteMode};
 use fontdue::{Font as NativeFont, FontSettings};
 use image::io::Reader;
 use image::{ColorType, GenericImageView, Pixel};
+use log::error;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::Cursor;
 use std::ops::Add;
@@ -17,10 +19,18 @@ pub trait Game {
 
 #[derive(Error, Debug)]
 pub enum EngineError {
+    #[error("error initialising engine")]
+    Initialisation(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("no game was provided")]
     NoGameProvided,
     #[error("window error")]
     Window(#[from] WindowError),
+}
+
+impl From<LoggerError> for EngineError {
+    fn from(e: LoggerError) -> Self {
+        Self::Initialisation(e.into())
+    }
 }
 
 pub struct GameEngineBuilder<'a, G>
@@ -91,6 +101,8 @@ where
     }
 
     pub fn run(self) -> Result<(), EngineError> {
+        let _logger = EngineLogger::init()?;
+
         let mut game = match self.game {
             Some(game) => game,
             _ => return Err(EngineError::NoGameProvided),
@@ -121,7 +133,7 @@ where
             let elapsed = clock.elapsed();
             if elapsed < target_frame_duration {
                 if let Err(e) = sleep(target_frame_duration - elapsed) {
-                    eprintln!("{}", e);
+                    error!("{}", e);
                 }
             }
 
@@ -139,18 +151,18 @@ where
                 gfx.fill_rect(
                     Vec2::new(debug_box_left, height),
                     Vec2::new(width, height - 50.0),
-                    Color::SILVER,
+                    colors::css::SILVER,
                 );
                 gfx.draw_string(
                     format!("ms/F: {:.2}", clock.delta().as_secs_f32() * 1_000.0),
                     Vec2::new(width - 180.0, height - 20.0),
-                    Color::BLACK,
+                    colors::css::BLACK,
                     12.0,
                 );
                 gfx.draw_string(
                     format!("FPS: {:.2}", fps),
                     Vec2::new(width - 180.0, height - 30.0),
-                    Color::BLACK,
+                    colors::css::BLACK,
                     12.0,
                 );
                 gfx.draw_string(
@@ -159,7 +171,7 @@ where
                         unsafe { SLEEP_TOLERANCE }.as_micros() as f32 / 1_000.0
                     ),
                     Vec2::new(width - 180.0, height - 40.0),
-                    Color::BLACK,
+                    colors::css::BLACK,
                     12.0,
                 );
             }
@@ -344,13 +356,6 @@ impl Color {
         dst * (1.0 - t) + src * t
         // Or: `dst + (src - dst) * t`.
     }
-
-    pub const BLACK: Self = Self::rgba(0, 0, 0, 255);
-    pub const BLUE: Self = Self::rgba(0, 0, 255, 255);
-    pub const RED: Self = Self::rgba(255, 0, 0, 255);
-    pub const SILVER: Self = Self::rgba(192, 192, 192, 255);
-    pub const WHITE: Self = Self::rgba(255, 255, 255, 255);
-    pub const YELLOW: Self = Self::rgba(255, 255, 0, 255);
 }
 
 impl From<Color> for u32 {
@@ -561,8 +566,8 @@ mod color_tests {
 
     #[test]
     fn linear_blend_red_color_full_opacity_onto_blue_color_is_red() {
-        let red = Color::RED;
-        let blue = Color::BLUE;
+        let red = colors::css::RED;
+        let blue = colors::css::BLUE;
 
         assert_eq!(Color::linear_blend(red, blue), red);
     }
@@ -570,7 +575,7 @@ mod color_tests {
     #[test]
     fn linear_blend_red_color_full_transparency_onto_blue_color_is_blue() {
         let red = Color::rgba(255, 0, 0, 0);
-        let blue = Color::BLUE;
+        let blue = colors::css::BLUE;
 
         assert_eq!(Color::linear_blend(red, blue), blue);
     }
@@ -589,7 +594,7 @@ impl Sprite {
         let reader = Reader::new(cursor)
             .with_guessed_format()
             .expect("Cursor io never fails");
-        let image = reader.decode().unwrap();
+        let image = reader.decode().unwrap(); // TODO: remove unwraps.
 
         let (width, height) = image.dimensions();
 
@@ -874,4 +879,28 @@ fn sleep(duration: Duration) -> Result<(), SleepError> {
     }
 
     Ok(())
+}
+
+//------------------------------------------ Logging -----------------------------------------------
+#[derive(Debug, Error)]
+pub enum LoggerError {
+    #[error("could not initialise logger")]
+    Initialisation(#[from] FlexiLoggerError),
+}
+
+struct EngineLogger {
+    _handle: flexi_logger::LoggerHandle,
+}
+
+impl EngineLogger {
+    fn init() -> Result<Self, LoggerError> {
+        let handle = Logger::try_with_str("debug")?
+            .log_to_file(FileSpec::default().suppress_timestamp())
+            .write_mode(WriteMode::Async)
+            .start()?;
+
+        let logger = Self { _handle: handle };
+
+        Ok(logger)
+    }
 }

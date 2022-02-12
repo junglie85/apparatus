@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+flexi_logger = { version = "0.22", features = ["async", "use_chrono_for_offset"] }
 fontdue = "0.6"
 image = { version = "0.24", default-features = false, features = ["png"] }
+log = "0.4"
 minifb = "0.20"
 thiserror = "1"
 
