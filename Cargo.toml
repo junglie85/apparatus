@@ -1,7 +1,13 @@
 [package]
-name = "firefly"
+name = "apparatus"
 version = "0.0.1"
 edition = "2021"
+description = "A 2D game engine"
+license = "MIT"
+repository = "https://github.com/junglie85/apparatus"
+readme = "README.md"
+keywords = ["gamedev", "game", "engine", "2d"]
+categories = ["game-development", "game-engines"]
 
 [dependencies]
 flexi_logger = { version = "0.22", features = ["async", "use_chrono_for_offset"] }
