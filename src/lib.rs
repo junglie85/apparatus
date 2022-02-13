@@ -1,7 +1,6 @@
 use flexi_logger::{FileSpec, FlexiLoggerError, Logger, WriteMode};
 use fontdue::{Font as NativeFont, FontSettings};
 use image::io::Reader;
-use image::{ColorType, GenericImageView, Pixel};
 use log::error;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::Cursor;
@@ -554,8 +553,7 @@ mod color_tests {
 pub struct Sprite {
     width: u32,
     height: u32,
-    // data: Vec<u8>,
-    pixels: Vec<Color>,
+    data: Vec<u8>,
 }
 
 impl Sprite {
@@ -565,25 +563,15 @@ impl Sprite {
             .with_guessed_format()
             .expect("Cursor io never fails");
         let image = reader.decode().unwrap(); // TODO: remove unwraps.
+        let image = image.to_rgba8();
 
         let (width, height) = image.dimensions();
-
-        let mut pixels = Vec::with_capacity(width as usize * height as usize);
-        if image.color() == ColorType::Rgba8 {
-            for (_, _, pixel) in image.pixels() {
-                let channels = pixel.channels();
-                let r = channels[0];
-                let g = channels[1];
-                let b = channels[2];
-                let a = channels[3];
-                pixels.push(Color::rgba(r, g, b, a));
-            }
-        }
+        let data = image.to_vec();
 
         Self {
             width,
             height,
-            pixels,
+            data,
         }
     }
 
@@ -600,7 +588,7 @@ pub trait Gfx {
     fn width(&self) -> f32;
 
     fn height(&self) -> f32;
-    
+
     fn clear(&mut self, color: Color);
 
     fn put_pixel(&mut self, position: Vec2, color: Color);
@@ -729,8 +717,16 @@ impl Gfx for EngineGfx {
             for sprite_x in 0..sprite.width as usize {
                 let x = pos.x + sprite_x as f32;
                 let y = pos.y + (sprite.height as usize - sprite_y) as f32;
-                let color = sprite.pixels[sprite_y * sprite.width as usize + sprite_x];
-                self.put_pixel(Vec2::new(x, y), color);
+                let position = Vec2::new(x, y);
+
+                let offset = (sprite_y * sprite.width as usize + sprite_x) * 4;
+                let r = sprite.data[offset];
+                let g = sprite.data[offset + 1];
+                let b = sprite.data[offset + 2];
+                let a = sprite.data[offset + 3];
+                let color = Color::rgba(r, g, b, a);
+
+                self.put_pixel(position, color);
             }
         }
     }
