@@ -1,5 +1,8 @@
 use anyhow::Result;
-use firefly::{clamp, colors, Color, Game, GameEngine, Gfx, Input, Key, Sprite, Vec2};
+use firefly::{
+    clamp, colors, Color, Game, GameEngine, GameEngineSettings, GameError, Gfx, Input, Key, Sprite,
+    Vec2,
+};
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -18,8 +21,6 @@ impl From<(f32, f32)> for TrackSegment {
 }
 
 struct RetroRacer {
-    width: usize,
-    height: usize,
     sprites: Vec<Sprite>,
     car_pos: f32,
     distance: f32,
@@ -34,34 +35,14 @@ struct RetroRacer {
     lap_times: VecDeque<Duration>,
 }
 
-impl RetroRacer {
-    fn new(width: usize, height: usize) -> Self {
-        Self {
-            width,
-            height,
-            sprites: Vec::new(),
-            car_pos: 0.0,
-            distance: 0.0,
-            speed: 0.0,
-            target_curvature: 0.0,
-            track_curvature: 0.0,
-            player_curvature: 0.0,
-            track_distance: 0.0,
-            current_lap_time: Duration::from_millis(0),
-            track: Vec::new(),
-            track_segment: 0,
-            lap_times: VecDeque::from([Duration::from_millis(0); 5]),
-        }
-    }
-}
-
 impl Game for RetroRacer {
-    fn on_create(&mut self) {
-        let sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
-        let sprite = Sprite::from_bytes(sprite_bytes);
-        self.sprites.push(sprite);
+    fn on_create() -> Result<Self, GameError> {
+        let mut sprites = Vec::new();
+        let car_sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
+        let car_sprite = Sprite::from_bytes(car_sprite_bytes);
+        sprites.push(car_sprite);
 
-        self.track = [
+        let track: Vec<TrackSegment> = [
             (0.0, 10.0),
             (0.0, 200.0),
             (1.0, 200.0),
@@ -78,11 +59,27 @@ impl Game for RetroRacer {
         .map(|t| t.into())
         .collect();
 
-        self.track_distance = self
-            .track
+        let track_distance = track
             .iter()
             .map(|TrackSegment { distance, .. }| distance)
             .sum();
+
+        let retro_racer = Self {
+            sprites,
+            car_pos: 0.0,
+            distance: 0.0,
+            speed: 0.0,
+            target_curvature: 0.0,
+            track_curvature: 0.0,
+            player_curvature: 0.0,
+            track_distance,
+            current_lap_time: Duration::from_millis(0),
+            track,
+            track_segment: 0,
+            lap_times: VecDeque::from([Duration::from_millis(0); 5]),
+        };
+
+        Ok(retro_racer)
     }
 
     fn on_update(&mut self, input: &impl Input, dt: Duration) {
@@ -145,9 +142,10 @@ impl Game for RetroRacer {
         gfx.clear(Color::rgba(204, 51, 204, 0));
 
         let scale = 4_f32;
-        let screen_height = self.height / scale as usize;
-        let screen_width = self.width / scale as usize;
+        let screen_width = (gfx.width() / scale) as usize;
+        let screen_height = (gfx.height() / scale) as usize;
 
+        // Draw scenery.
         for y in (screen_height / 2)..screen_height {
             let sky = if (y as f32) < screen_height as f32 * 0.75 {
                 colors::css::LIGHTSKYBLUE
@@ -183,6 +181,7 @@ impl Game for RetroRacer {
             }
         }
 
+        // Draw track.
         let road = if self.track_segment == 0 || self.track_segment == 1 {
             colors::css::WHITE
         } else {
@@ -258,31 +257,31 @@ impl Game for RetroRacer {
         // Draw stats.
         gfx.draw_string(
             format!("Distance: {:.2}", self.distance),
-            Vec2::new(10.0, self.height as f32 - 20.0),
+            Vec2::new(10.0, gfx.height() - 20.0),
             colors::css::WHITE,
             12.0,
         );
         gfx.draw_string(
             format!("Speed: {:.2}", self.speed),
-            Vec2::new(10.0, self.height as f32 - 30.0),
+            Vec2::new(10.0, gfx.height() - 30.0),
             colors::css::WHITE,
             12.0,
         );
         gfx.draw_string(
             format!("Target curvature:: {:.2}", self.target_curvature),
-            Vec2::new(10.0, self.height as f32 - 40.0),
+            Vec2::new(10.0, gfx.height() - 40.0),
             colors::css::WHITE,
             12.0,
         );
         gfx.draw_string(
             format!("Player curvature: {:.2}", self.player_curvature),
-            Vec2::new(10.0, self.height as f32 - 50.0),
+            Vec2::new(10.0, gfx.height() - 50.0),
             colors::css::WHITE,
             12.0,
         );
         gfx.draw_string(
             format!("Track curvature: {:.2}", self.track_curvature),
-            Vec2::new(10.0, self.height as f32 - 60.0),
+            Vec2::new(10.0, gfx.height() - 60.0),
             colors::css::WHITE,
             12.0,
         );
@@ -296,7 +295,7 @@ impl Game for RetroRacer {
 
         gfx.draw_string(
             format!("Lap 0: {}", format_lap_time(&self.current_lap_time)),
-            Vec2::new(10.0, self.height as f32 - 80.0),
+            Vec2::new(10.0, gfx.height() - 80.0),
             colors::css::WHITE,
             12.0,
         );
@@ -304,7 +303,7 @@ impl Game for RetroRacer {
         for (lap, lap_time) in self.lap_times.iter().enumerate() {
             gfx.draw_string(
                 format!("Lap {}: {}", lap + 1, format_lap_time(lap_time)),
-                Vec2::new(10.0, self.height as f32 - (90.0 + 10.0 * lap as f32)),
+                Vec2::new(10.0, gfx.height() as f32 - (90.0 + 10.0 * lap as f32)),
                 colors::css::WHITE,
                 12.0,
             );
@@ -313,15 +312,8 @@ impl Game for RetroRacer {
 }
 
 fn main() -> Result<()> {
-    let retro_racer = RetroRacer::new(1280, 720);
-
-    let engine = GameEngine::builder()
-        .with_game(retro_racer)
-        .with_name("Retro Racer!")
-        .with_window_dimensions(1280, 720)
-        .build();
-
-    engine.run()?;
+    let engine = GameEngine::new("Retro Racer!", GameEngineSettings::default());
+    engine.run::<RetroRacer>()?;
 
     Ok(())
 }

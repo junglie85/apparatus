@@ -9,8 +9,14 @@ use std::ops::Add;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
-pub trait Game {
-    fn on_create(&mut self);
+#[derive(Error, Debug)]
+pub enum GameError {
+    #[error("error creating game")]
+    Creation(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
+
+pub trait Game<Game = Self> {
+    fn on_create() -> Result<Game, GameError>;
 
     fn on_update(&mut self, input: &impl Input, dt: Duration);
 
@@ -21,10 +27,14 @@ pub trait Game {
 pub enum EngineError {
     #[error("error initialising engine")]
     Initialisation(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("no game was provided")]
-    NoGameProvided,
     #[error("window error")]
     Window(#[from] WindowError),
+}
+
+impl From<GameError> for EngineError {
+    fn from(e: GameError) -> Self {
+        Self::Initialisation(e.into())
+    }
 }
 
 impl From<LoggerError> for EngineError {
@@ -33,86 +43,46 @@ impl From<LoggerError> for EngineError {
     }
 }
 
-pub struct GameEngineBuilder<'a, G>
-where
-    G: Game,
-{
-    game: Option<G>,
-    name: &'a str,
-    window_dimensions: Vec2,
+pub struct GameEngineSettings {
+    pub width: usize,
+    pub height: usize,
 }
 
-impl<'a, G> Default for GameEngineBuilder<'a, G>
-where
-    G: Game,
-{
+impl Default for GameEngineSettings {
     fn default() -> Self {
         Self {
-            game: None,
-            name: "Firefly Game Engine",
-            window_dimensions: Vec2::new(640.0, 480.0),
+            width: 1280,
+            height: 720,
         }
     }
 }
 
-impl<'a, G> GameEngineBuilder<'a, G>
-where
-    G: Game,
-{
-    pub fn build(self) -> GameEngine<'a, G> {
-        GameEngine {
-            game: self.game,
-            name: self.name,
-            window_dimensions: self.window_dimensions,
-        }
-    }
-
-    pub fn with_game(mut self, game: G) -> Self {
-        self.game = Some(game);
-        self
-    }
-
-    pub fn with_name(mut self, name: &'a str) -> Self {
-        self.name = name;
-        self
-    }
-
-    pub fn with_window_dimensions(mut self, width: usize, height: usize) -> Self {
-        self.window_dimensions = Vec2::new(width as f32, height as f32);
-        self
-    }
-}
-
-pub struct GameEngine<'a, G>
-where
-    G: Game,
-{
-    game: Option<G>,
+pub struct GameEngine<'a> {
     name: &'a str,
     window_dimensions: Vec2,
 }
 
-impl<'a, G> GameEngine<'a, G>
-where
-    G: Game,
-{
-    pub fn builder() -> GameEngineBuilder<'a, G> {
-        GameEngineBuilder::default()
+impl<'a> GameEngine<'a> {
+    pub fn new(name: &'a str, settings: GameEngineSettings) -> GameEngine<'a> {
+        let window_dimensions = Vec2::new(settings.width as f32, settings.height as f32);
+
+        Self {
+            name,
+            window_dimensions,
+        }
     }
 
-    pub fn run(self) -> Result<(), EngineError> {
+    pub fn run<G>(self) -> Result<(), EngineError>
+    where
+        G: Game,
+    {
         let _logger = EngineLogger::init()?;
-
-        let mut game = match self.game {
-            Some(game) => game,
-            _ => return Err(EngineError::NoGameProvided),
-        };
 
         let mut window = Window::new(self.name, self.window_dimensions)?;
         let frame_buffer = FrameBuffer::new(self.window_dimensions);
         let mut gfx = EngineGfx::new(self.window_dimensions, frame_buffer);
 
-        game.on_create();
+        let mut game = G::on_create()?;
 
         let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
 
@@ -627,6 +597,10 @@ impl Sprite {
 }
 
 pub trait Gfx {
+    fn width(&self) -> f32;
+
+    fn height(&self) -> f32;
+    
     fn clear(&mut self, color: Color);
 
     fn put_pixel(&mut self, position: Vec2, color: Color);
@@ -672,6 +646,14 @@ impl EngineGfx {
 }
 
 impl Gfx for EngineGfx {
+    fn width(&self) -> f32 {
+        self.width
+    }
+
+    fn height(&self) -> f32 {
+        self.height
+    }
+
     fn clear(&mut self, color: Color) {
         self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
     }
