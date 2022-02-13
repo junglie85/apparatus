@@ -20,11 +20,18 @@ impl From<(f32, f32)> for TrackSegment {
     }
 }
 
+enum Direction {
+    Forward,
+    Left,
+    Right,
+}
+
 struct RetroRacer {
     sprites: Vec<Sprite>,
     car_pos: f32,
     distance: f32,
     speed: f32,
+    direction: Direction,
     target_curvature: f32,
     track_curvature: f32,
     player_curvature: f32,
@@ -38,9 +45,18 @@ struct RetroRacer {
 impl Game for RetroRacer {
     fn on_create() -> Result<Self, GameError> {
         let mut sprites = Vec::new();
+
         let car_sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
         let car_sprite = Sprite::from_bytes(car_sprite_bytes);
         sprites.push(car_sprite);
+
+        let car_left_sprite_bytes = include_bytes!("assets/red_racer_left_32x32.png");
+        let car_left_sprite = Sprite::from_bytes(car_left_sprite_bytes);
+        sprites.push(car_left_sprite);
+
+        let car_right_sprite_bytes = include_bytes!("assets/red_racer_right_32x32.png");
+        let car_right_sprite = Sprite::from_bytes(car_right_sprite_bytes);
+        sprites.push(car_right_sprite);
 
         let track: Vec<TrackSegment> = [
             (0.0, 10.0),
@@ -69,6 +85,7 @@ impl Game for RetroRacer {
             car_pos: 0.0,
             distance: 0.0,
             speed: 0.0,
+            direction: Direction::Forward,
             target_curvature: 0.0,
             track_curvature: 0.0,
             player_curvature: 0.0,
@@ -90,12 +107,16 @@ impl Game for RetroRacer {
             self.speed -= 1.0;
         }
 
+        self.direction = Direction::Forward;
+
         if input.is_key_held(Key::Left) {
             self.player_curvature -= 0.7 * dt.as_secs_f32();
+            self.direction = Direction::Left;
         }
 
         if input.is_key_held(Key::Right) {
             self.player_curvature += 0.7 * dt.as_secs_f32();
+            self.direction = Direction::Right;
         }
 
         if (self.player_curvature - self.track_curvature).abs() >= 0.8 {
@@ -136,6 +157,7 @@ impl Game for RetroRacer {
         self.track_curvature += self.target_curvature * dt.as_secs_f32() * self.speed;
 
         self.car_pos = self.player_curvature - self.track_curvature;
+        self.car_pos = clamp(-0.95, self.car_pos, 0.95);
     }
 
     fn on_render(&self, gfx: &mut impl Gfx) {
@@ -244,12 +266,18 @@ impl Game for RetroRacer {
         }
 
         // Draw car.
-        if let Some(car_sprite) = self.sprites.get(0) {
+        let sprite_idx = match self.direction {
+            Direction::Forward => 0,
+            Direction::Left => 1,
+            Direction::Right => 2,
+        };
+
+        if let Some(car_sprite) = self.sprites.get(sprite_idx) {
             let car_x = (((screen_width as f32 / 2.0)
                 + ((screen_width as f32 * self.car_pos) / 2.0))
                 * scale)
                 - (car_sprite.width() as f32 / 2.0);
-            let car_y = 20.0 * scale;
+            let car_y = 30.0 * scale;
 
             gfx.draw_sprite(car_sprite, Vec2::new(car_x as f32, car_y as f32));
         }
