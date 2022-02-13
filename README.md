@@ -4,11 +4,7 @@ Firefly is a pixel based game engine that takes its inspiration from a number of
 
 ## Examples
 
-Run example games from the command line with cargo:
-
-```commandline
-cargo run --example greet
-```
+- [Retro Racer](examples/retro_racer)
 
 ## Development
 
