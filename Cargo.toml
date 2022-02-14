@@ -1,6 +1,6 @@
 [package]
 name = "apparatus"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 description = "A 2D game engine"
 license = "MIT"
@@ -19,6 +19,10 @@ thiserror = "1"
 
 [dev-dependencies]
 anyhow = "1"
+
+[[example]]
+name = "mini-rpg"
+path = "examples/mini_rpg/main.rs"
 
 [[example]]
 name = "retro-racer"

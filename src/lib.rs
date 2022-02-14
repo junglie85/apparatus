@@ -22,6 +22,14 @@ pub trait Game<Game = Self> {
     fn on_render(&self, gfx: &mut impl Gfx);
 }
 
+pub fn run<G>(name: &str, settings: GameEngineSettings) -> Result<(), EngineError>
+where
+    G: Game,
+{
+    let engine = GameEngine::new(name, settings);
+    engine.run::<G>()
+}
+
 #[derive(Error, Debug)]
 pub enum EngineError {
     #[error("error initialising engine")]
@@ -43,8 +51,10 @@ impl From<LoggerError> for EngineError {
 }
 
 pub struct GameEngineSettings {
-    pub width: usize,
-    pub height: usize,
+    width: usize,
+    height: usize,
+    pixel_width: usize,
+    pixel_height: usize,
 }
 
 impl Default for GameEngineSettings {
@@ -52,7 +62,27 @@ impl Default for GameEngineSettings {
         Self {
             width: 1280,
             height: 720,
+            pixel_width: 1,
+            pixel_height: 1,
         }
+    }
+}
+
+impl GameEngineSettings {
+    /// Set the number of pixels in width and height for each "virtual" pixel.
+    /// Defaults to 1 x 1.
+    pub fn with_pixel_size(mut self, width: usize, height: usize) -> Self {
+        self.pixel_width = width;
+        self.pixel_height = height;
+        self
+    }
+
+    /// Set the desired initial width and height of the window in whole pixels.
+    /// Defaults to 1280 x 720.
+    pub fn with_window_size(mut self, width: usize, height: usize) -> Self {
+        self.width = width;
+        self.height = height;
+        self
     }
 }
 
@@ -738,6 +768,7 @@ pub struct Font(NativeFont);
 
 //------------------------------------------- Maths ------------------------------------------------
 
+// TODO: Use a maths library and re-export it; or, these are probably good candidates for macros.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vec2 {
     pub x: f32,
@@ -788,7 +819,7 @@ mod maths_tests {
     }
 
     #[test]
-    fn scale_vec2_scales_all_components() {
+    fn scalar_addition_vec2_adds_to_all_components() {
         let vec = Vec2::new(3.0, 5.0);
 
         assert_eq!(Vec2::new(7.0, 9.0), vec + 4.0);
