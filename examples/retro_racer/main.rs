@@ -28,7 +28,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use anyhow::Result;
-use firefly::{
+use apparatus::{
     clamp, colors, Color, Game, GameEngine, GameEngineSettings, GameError, Gfx, Input, Key, Sprite,
     Vec2,
 };
