@@ -8,7 +8,7 @@ C++)](https://youtu.be/KkMZI5Jbf18) by javidx9.
 To run:
 
 ```commandline
-cargo run example --retro-racer
+cargo run --example retro-racer
 ```
 
 ## License
