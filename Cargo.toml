@@ -21,6 +21,10 @@ thiserror = "1"
 anyhow = "1"
 
 [[example]]
+name = "mini-platformer"
+path = "examples/mini_platformer/main.rs"
+
+[[example]]
 name = "mini-rpg"
 path = "examples/mini_rpg/main.rs"
 

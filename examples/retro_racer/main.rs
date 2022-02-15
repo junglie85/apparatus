@@ -28,10 +28,9 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use anyhow::Result;
-use apparatus::{
-    clamp, colors, Color, Game, GameEngine, GameEngineSettings, GameError, Gfx, Input, Key, Sprite,
-    Vec2,
-};
+use apparatus::color::Color;
+use apparatus::errors::ApparatusError;
+use apparatus::{clamp, color, Game, Input, Key, Renderer, Settings, Sprite, Vec2};
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -72,7 +71,7 @@ struct RetroRacer {
 }
 
 impl Game for RetroRacer {
-    fn on_create() -> Result<Self, GameError> {
+    fn on_create() -> Result<Self, ApparatusError> {
         let mut sprites = Vec::new();
 
         let car_sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
@@ -189,19 +188,19 @@ impl Game for RetroRacer {
         self.car_pos = clamp(-0.95, self.car_pos, 0.95);
     }
 
-    fn on_render(&self, gfx: &mut impl Gfx) {
-        gfx.clear(Color::rgba(204, 51, 204, 0));
+    fn on_render(&self, renderer: &mut impl Renderer) {
+        renderer.clear(Color::rgba(204, 51, 204, 0));
 
         let scale = 4_f32;
-        let screen_width = (gfx.width() / scale) as usize;
-        let screen_height = (gfx.height() / scale) as usize;
+        let screen_width = (renderer.width() / scale) as usize;
+        let screen_height = (renderer.height() / scale) as usize;
 
         // Draw scenery.
         for y in (screen_height / 2)..screen_height {
             let sky = if (y as f32) < screen_height as f32 * 0.75 {
-                colors::css::LIGHTSKYBLUE
+                color::css::LIGHTSKYBLUE
             } else {
-                colors::css::DEEPSKYBLUE
+                color::css::DEEPSKYBLUE
             };
             for x in 0..screen_width {
                 let x = x as f32;
@@ -210,7 +209,7 @@ impl Game for RetroRacer {
                 let y1 = y * scale;
                 let x2 = x1 + scale;
                 let y2 = y1 + scale;
-                gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), sky);
+                renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), sky);
             }
         }
 
@@ -224,19 +223,19 @@ impl Game for RetroRacer {
                 let y1 = y * scale;
                 let x2 = x1 + scale;
                 let y2 = y1 + scale;
-                gfx.fill_rect(
+                renderer.fill_rect(
                     Vec2::new(x1, y1),
                     Vec2::new(x2, y2),
-                    colors::css::DARKGOLDENROD,
+                    color::css::DARKGOLDENROD,
                 );
             }
         }
 
         // Draw track.
         let road = if self.track_segment == 0 || self.track_segment == 1 {
-            colors::css::WHITE
+            color::css::WHITE
         } else {
-            colors::css::LIGHTGREY
+            color::css::LIGHTGREY
         };
 
         for y in 0..(screen_height / 2) {
@@ -245,16 +244,16 @@ impl Game for RetroRacer {
 
             let grass = if (20.0 * (1.0 - perspective).powf(3.0) + self.distance * 0.1).sin() > 0.0
             {
-                colors::css::LAWNGREEN
+                color::css::LAWNGREEN
             } else {
-                colors::css::DARKGREEN
+                color::css::DARKGREEN
             };
 
             let clipboard =
                 if (80.0 * (1.0 - perspective).powf(3.0) + self.distance * 0.1).sin() > 0.0 {
-                    colors::css::DARKRED
+                    color::css::DARKRED
                 } else {
-                    colors::css::WHITE
+                    color::css::WHITE
                 };
 
             for x in 0..screen_width {
@@ -277,19 +276,19 @@ impl Game for RetroRacer {
                 let x2 = x1 + scale;
                 let y2 = y1 + scale;
                 if x < left_grass {
-                    gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
+                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
                 }
                 if x >= left_grass && x < left_clipboard {
-                    gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
+                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
                 }
                 if x >= left_clipboard && x < right_clipboard {
-                    gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), road);
+                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), road);
                 }
                 if x >= right_clipboard && x < right_grass {
-                    gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
+                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
                 }
                 if x >= right_grass && x < screen_width as f32 {
-                    gfx.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
+                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
                 }
             }
         }
@@ -308,38 +307,38 @@ impl Game for RetroRacer {
                 - (car_sprite.width() as f32 / 2.0);
             let car_y = 30.0 * scale;
 
-            gfx.draw_sprite(car_sprite, Vec2::new(car_x as f32, car_y as f32));
+            renderer.draw_sprite(car_sprite, Vec2::new(car_x as f32, car_y as f32));
         }
 
         // Draw stats.
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Distance: {:.2}", self.distance),
-            Vec2::new(10.0, gfx.height() - 20.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 20.0),
+            color::css::WHITE,
             12.0,
         );
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Speed: {:.2}", self.speed),
-            Vec2::new(10.0, gfx.height() - 30.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 30.0),
+            color::css::WHITE,
             12.0,
         );
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Target curvature:: {:.2}", self.target_curvature),
-            Vec2::new(10.0, gfx.height() - 40.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 40.0),
+            color::css::WHITE,
             12.0,
         );
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Player curvature: {:.2}", self.player_curvature),
-            Vec2::new(10.0, gfx.height() - 50.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 50.0),
+            color::css::WHITE,
             12.0,
         );
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Track curvature: {:.2}", self.track_curvature),
-            Vec2::new(10.0, gfx.height() - 60.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 60.0),
+            color::css::WHITE,
             12.0,
         );
 
@@ -350,18 +349,18 @@ impl Game for RetroRacer {
             format!("{:0>2}:{:>02}:{:3}", minutes, seconds, millis)
         }
 
-        gfx.draw_string(
+        renderer.draw_string(
             format!("Lap 0: {}", format_lap_time(&self.current_lap_time)),
-            Vec2::new(10.0, gfx.height() - 80.0),
-            colors::css::WHITE,
+            Vec2::new(10.0, renderer.height() - 80.0),
+            color::css::WHITE,
             12.0,
         );
 
         for (lap, lap_time) in self.lap_times.iter().enumerate() {
-            gfx.draw_string(
+            renderer.draw_string(
                 format!("Lap {}: {}", lap + 1, format_lap_time(lap_time)),
-                Vec2::new(10.0, gfx.height() as f32 - (90.0 + 10.0 * lap as f32)),
-                colors::css::WHITE,
+                Vec2::new(10.0, renderer.height() as f32 - (90.0 + 10.0 * lap as f32)),
+                color::css::WHITE,
                 12.0,
             );
         }
@@ -369,8 +368,7 @@ impl Game for RetroRacer {
 }
 
 fn main() -> Result<()> {
-    let engine = GameEngine::new("Retro Racer!", GameEngineSettings::default());
-    engine.run::<RetroRacer>()?;
+    apparatus::run::<RetroRacer>("Retro Racer!", Settings::default())?;
 
     Ok(())
 }
