@@ -2,7 +2,7 @@ use crate::maths::Vec2;
 use crate::platform::FrameBuffer;
 use crate::ApparatusError;
 
-pub(crate) struct Window {
+pub struct Window {
     width: f32,
     height: f32,
     native_window: minifb::Window,

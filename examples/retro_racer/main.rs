@@ -71,7 +71,7 @@ struct RetroRacer {
 }
 
 impl Game for RetroRacer {
-    fn on_create() -> Result<Self, ApparatusError> {
+    fn on_create(_screen_width: usize, _screen_height: usize) -> Result<Self, ApparatusError> {
         let mut sprites = Vec::new();
 
         let car_sprite_bytes = include_bytes!("assets/red_racer_32x32.png");
@@ -188,7 +188,7 @@ impl Game for RetroRacer {
         self.car_pos = clamp(-0.95, self.car_pos, 0.95);
     }
 
-    fn on_render(&self, renderer: &mut impl Renderer) {
+    fn on_render(&self, _screen_width: usize, _screen_height: usize, renderer: &mut impl Renderer) {
         renderer.clear(Color::rgba(204, 51, 204, 0));
 
         let scale = 4_f32;

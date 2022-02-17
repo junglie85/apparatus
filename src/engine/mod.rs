@@ -1,5 +1,4 @@
 use crate::color::Color;
-use crate::engine::input::Key;
 use crate::engine::sprite::Sprite;
 use crate::maths::Vec2;
 use crate::platform::input::PlatformInput;
@@ -25,7 +24,9 @@ pub trait Renderer {
 
     fn clear(&mut self, color: Color);
 
-    fn put_pixel(&mut self, position: Vec2, color: Color);
+    fn put_pixel(&mut self, position: Vec2, color: Color); // TODO: Make this private to impl.
+
+    fn draw(&mut self, position: Vec2, color: Color);
 
     fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color);
 
@@ -36,15 +37,30 @@ pub trait Renderer {
 
 pub(crate) struct Engine<'a> {
     name: &'a str,
+    pixel_width: usize,
+    pixel_height: usize,
+    screen_width: usize,
+    screen_height: usize,
     window_dimensions: Vec2,
 }
 
 impl<'a> Engine<'a> {
     pub(crate) fn new(name: &'a str, settings: Settings) -> Engine<'a> {
-        let window_dimensions = Vec2::new(settings.width as f32, settings.height as f32);
+        let pixel_width = settings.pixel_width;
+        let pixel_height = settings.pixel_height;
+        let screen_width = settings.width;
+        let screen_height = settings.height;
+        let window_dimensions = Vec2::new(
+            (screen_width * pixel_width) as f32,
+            (screen_height * pixel_height) as f32,
+        );
 
         Self {
             name,
+            pixel_width,
+            pixel_height,
+            screen_width,
+            screen_height,
             window_dimensions,
         }
     }
@@ -55,16 +71,22 @@ impl<'a> Engine<'a> {
     {
         let _logger = Logger::init()?;
 
-        let mut window = Window::new(self.name, self.window_dimensions)?;
-        let frame_buffer = FrameBuffer::new(self.window_dimensions);
-        let mut renderer = Renderer2d::new(self.window_dimensions, frame_buffer);
-
-        let mut game = G::on_create()?;
-
-        let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
-
         let mut clock = Clock::default();
         clock.tick();
+
+        let mut window = Window::new(self.name, self.window_dimensions)?;
+        let frame_buffer = FrameBuffer::new(self.window_dimensions);
+        let mut renderer = Renderer2d::new(
+            self.window_dimensions,
+            self.pixel_width,
+            self.pixel_height,
+            frame_buffer,
+        );
+        let mut input = PlatformInput::new();
+
+        let mut game = G::on_create(self.screen_width, self.screen_height)?;
+
+        let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
 
         let mut running = true;
         while running {
@@ -72,10 +94,10 @@ impl<'a> Engine<'a> {
                 running = false;
             }
 
-            let input = process_input(&window);
+            input.process_input(&window);
 
             game.on_update(&input, target_frame_duration);
-            game.on_render(&mut renderer);
+            game.on_render(self.screen_width, self.screen_height, &mut renderer);
 
             let elapsed = clock.elapsed();
             if elapsed < target_frame_duration {
@@ -128,22 +150,4 @@ impl<'a> Engine<'a> {
 
         Ok(())
     }
-}
-
-fn process_input(window: &Window) -> PlatformInput {
-    let mut input = PlatformInput::new();
-
-    window
-        .native_window()
-        .get_keys()
-        .iter()
-        .for_each(|key| match key {
-            minifb::Key::Up => input.keys.push(Key::Up),
-            minifb::Key::Down => input.keys.push(Key::Down),
-            minifb::Key::Left => input.keys.push(Key::Left),
-            minifb::Key::Right => input.keys.push(Key::Right),
-            _ => (),
-        });
-
-    input
 }

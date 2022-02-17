@@ -31,6 +31,11 @@ pub fn clamp(min: f32, value: f32, max: f32) -> f32 {
     }
 }
 
+pub fn lerp(src: f32, dst: f32, t: f32) -> f32 {
+    dst * (1.0 - t) + src * t
+    // Or: `dst + (src - dst) * t`.
+}
+
 #[cfg(test)]
 mod maths_tests {
     use super::*;
@@ -48,6 +53,15 @@ mod maths_tests {
     #[test]
     fn clamp_value_greater_than_max_is_max() {
         assert_eq!(20.0, clamp(0.0, 30.0, 20.0));
+    }
+
+    #[test]
+    fn linear_interpolate_between_two_values() {
+        let a = 10.0;
+        let b = 50.0;
+        let t = 0.75;
+
+        assert_eq!(lerp(a, b, t), 20.0);
     }
 
     #[test]

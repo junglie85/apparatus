@@ -3,10 +3,13 @@ use apparatus::errors::ApparatusError;
 use apparatus::{Game, Input, Renderer, Settings};
 use std::time::Duration;
 
-struct MiniRpg {}
+struct MiniPlatformer {}
 
-impl Game for MiniRpg {
-    fn on_create(_screen_width: usize, _screen_height: usize) -> Result<Self, ApparatusError> {
+impl Game for MiniPlatformer {
+    fn on_create(
+        _screen_width: usize,
+        _screen_height: usize,
+    ) -> std::result::Result<Self, ApparatusError> {
         Ok(Self {})
     }
 
@@ -22,7 +25,7 @@ impl Game for MiniRpg {
 }
 
 fn main() -> Result<()> {
-    apparatus::run::<MiniRpg>("Mini RPG", Settings::default())?;
+    apparatus::run::<MiniPlatformer>("Mini Platformer", Settings::default())?;
 
     Ok(())
 }

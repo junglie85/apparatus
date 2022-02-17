@@ -1,3 +1,4 @@
+use crate::lerp;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -26,19 +27,11 @@ impl Color {
 
     pub fn linear_blend(src: Self, dst: Self) -> Self {
         let t = src.a() as f32 / 255.0;
-        let r = (Color::interpolate_scalar(src.r() as f32 / 255.0, dst.r() as f32 / 255.0, t)
-            * 255.0) as u8;
-        let g = (Color::interpolate_scalar(src.g() as f32 / 255.0, dst.g() as f32 / 255.0, t)
-            * 255.0) as u8;
-        let b = (Color::interpolate_scalar(src.b() as f32 / 255.0, dst.b() as f32 / 255.0, t)
-            * 255.0) as u8;
+        let r = (lerp(src.r() as f32 / 255.0, dst.r() as f32 / 255.0, t) * 255.0) as u8;
+        let g = (lerp(src.g() as f32 / 255.0, dst.g() as f32 / 255.0, t) * 255.0) as u8;
+        let b = (lerp(src.b() as f32 / 255.0, dst.b() as f32 / 255.0, t) * 255.0) as u8;
 
         Self::rgba(r, g, b, 255)
-    }
-
-    pub fn interpolate_scalar(src: f32, dst: f32, t: f32) -> f32 {
-        dst * (1.0 - t) + src * t
-        // Or: `dst + (src - dst) * t`.
     }
 }
 
@@ -87,15 +80,6 @@ mod tests {
         let expected = (255 << 24) | (64 << 16) | (128 << 8) | 192;
 
         assert_eq!(expected, Into::<u32>::into(color));
-    }
-
-    #[test]
-    fn interpolate_between_two_values() {
-        let a = 10.0;
-        let b = 50.0;
-        let t = 0.75;
-
-        assert_eq!(Color::interpolate_scalar(a, b, t), 20.0);
     }
 
     #[test]

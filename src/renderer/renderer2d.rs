@@ -8,17 +8,26 @@ use crate::Sprite;
 pub struct Renderer2d {
     width: f32,
     height: f32,
+    pixel_width: usize,
+    pixel_height: usize,
     buffer: FrameBuffer,
     default_font: Font,
 }
 
 impl Renderer2d {
-    pub fn new(window_dimensions: Vec2, buffer: FrameBuffer) -> Self {
+    pub fn new(
+        window_dimensions: Vec2,
+        pixel_width: usize,
+        pixel_height: usize,
+        buffer: FrameBuffer,
+    ) -> Self {
         let default_font = font::load_default_font();
 
         Self {
             width: window_dimensions.x,
             height: window_dimensions.y,
+            pixel_width,
+            pixel_height,
             buffer,
             default_font,
         }
@@ -42,6 +51,7 @@ impl Renderer for Renderer2d {
         self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
     }
 
+    // TODO: Make this an impl detail?
     fn put_pixel(&mut self, position: Vec2, color: Color) {
         let x = position.x;
         let y = self.height - position.y;
@@ -57,6 +67,17 @@ impl Renderer for Renderer2d {
 
             self.buffer.data[(y * self.width + x) as usize] =
                 Color::linear_blend(color, dst).into();
+        }
+    }
+
+    fn draw(&mut self, position: Vec2, color: Color) {
+        let x = position.x * self.pixel_width as f32;
+        let y = position.y * self.pixel_height as f32;
+        for pixel_y in 0..self.pixel_height {
+            for pixel_x in 0..self.pixel_width {
+                let position = Vec2::new(x + pixel_x as f32, y + pixel_y as f32);
+                self.put_pixel(position, color);
+            }
         }
     }
 

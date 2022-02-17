@@ -16,11 +16,14 @@ mod renderer;
 mod util;
 
 pub trait Game<Game = Self> {
-    fn on_create() -> Result<Game, ApparatusError>;
+    /// Called once, after the engine has initialised.
+    fn on_create(screen_width: usize, screen_height: usize) -> Result<Game, ApparatusError>;
 
+    /// Called once per frame.
     fn on_update(&mut self, input: &impl Input, dt: Duration);
 
-    fn on_render(&self, renderer: &mut impl Renderer);
+    /// Called once per frame.
+    fn on_render(&self, screen_width: usize, screen_height: usize, renderer: &mut impl Renderer);
 }
 
 pub fn run<G>(name: &str, settings: Settings) -> Result<(), ApparatusError>
