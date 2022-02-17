@@ -188,12 +188,8 @@ impl Game for RetroRacer {
         self.car_pos = clamp(-0.95, self.car_pos, 0.95);
     }
 
-    fn on_render(&self, _screen_width: usize, _screen_height: usize, renderer: &mut impl Renderer) {
+    fn on_render(&self, screen_width: usize, screen_height: usize, renderer: &mut impl Renderer) {
         renderer.clear(Color::rgba(204, 51, 204, 0));
-
-        let scale = 4_f32;
-        let screen_width = (renderer.width() / scale) as usize;
-        let screen_height = (renderer.height() / scale) as usize;
 
         // Draw scenery.
         for y in (screen_height / 2)..screen_height {
@@ -205,11 +201,7 @@ impl Game for RetroRacer {
             for x in 0..screen_width {
                 let x = x as f32;
                 let y = y as f32;
-                let x1 = x * scale;
-                let y1 = y * scale;
-                let x2 = x1 + scale;
-                let y2 = y1 + scale;
-                renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), sky);
+                renderer.draw(Vec2::new(x, y), sky);
             }
         }
 
@@ -219,15 +211,7 @@ impl Game for RetroRacer {
             for y in (screen_height / 2)..((screen_height / 2) + hill_height) {
                 let x = x as f32;
                 let y = y as f32;
-                let x1 = x * scale;
-                let y1 = y * scale;
-                let x2 = x1 + scale;
-                let y2 = y1 + scale;
-                renderer.fill_rect(
-                    Vec2::new(x1, y1),
-                    Vec2::new(x2, y2),
-                    color::css::DARKGOLDENROD,
-                );
+                renderer.draw(Vec2::new(x, y), color::css::DARKGOLDENROD);
             }
         }
 
@@ -271,24 +255,20 @@ impl Game for RetroRacer {
 
                 let x = x as f32;
                 let y = y as f32;
-                let x1 = x * scale;
-                let y1 = y * scale;
-                let x2 = x1 + scale;
-                let y2 = y1 + scale;
                 if x < left_grass {
-                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
+                    renderer.draw(Vec2::new(x, y), grass);
                 }
                 if x >= left_grass && x < left_clipboard {
-                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
+                    renderer.draw(Vec2::new(x, y), clipboard);
                 }
                 if x >= left_clipboard && x < right_clipboard {
-                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), road);
+                    renderer.draw(Vec2::new(x, y), road);
                 }
                 if x >= right_clipboard && x < right_grass {
-                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), clipboard);
+                    renderer.draw(Vec2::new(x, y), clipboard);
                 }
                 if x >= right_grass && x < screen_width as f32 {
-                    renderer.fill_rect(Vec2::new(x1, y1), Vec2::new(x2, y2), grass);
+                    renderer.draw(Vec2::new(x, y), grass);
                 }
             }
         }
@@ -301,6 +281,7 @@ impl Game for RetroRacer {
         };
 
         if let Some(car_sprite) = self.sprites.get(sprite_idx) {
+            let scale = 1.0;
             let car_x = (((screen_width as f32 / 2.0)
                 + ((screen_width as f32 * self.car_pos) / 2.0))
                 * scale)
@@ -368,7 +349,10 @@ impl Game for RetroRacer {
 }
 
 fn main() -> Result<()> {
-    apparatus::run::<RetroRacer>("Retro Racer!", Settings::default())?;
+    let settings = Settings::default()
+        .with_screen_size(320, 180)
+        .with_pixel_size(4, 4);
+    apparatus::run::<RetroRacer>("Retro Racer!", settings)?;
 
     Ok(())
 }

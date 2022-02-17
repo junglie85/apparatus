@@ -53,7 +53,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// Set the number of pixels in width and height for each "virtual" pixel.
+    /// Set the number of pixels in width and height for each "virtual pixel".
     /// Defaults to 1 x 1.
     pub fn with_pixel_size(mut self, width: usize, height: usize) -> Self {
         self.pixel_width = width;
@@ -61,9 +61,9 @@ impl Settings {
         self
     }
 
-    /// Set the desired initial width and height of the window in whole pixels.
+    /// Set the desired initial width and height of the screen in "virtual pixels".
     /// Defaults to 1280 x 720.
-    pub fn with_window_size(mut self, width: usize, height: usize) -> Self {
+    pub fn with_screen_size(mut self, width: usize, height: usize) -> Self {
         self.width = width;
         self.height = height;
         self

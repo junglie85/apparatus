@@ -24,8 +24,6 @@ pub trait Renderer {
 
     fn clear(&mut self, color: Color);
 
-    fn put_pixel(&mut self, position: Vec2, color: Color); // TODO: Make this private to impl.
-
     fn draw(&mut self, position: Vec2, color: Color);
 
     fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color);

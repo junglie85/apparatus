@@ -36,22 +36,7 @@ impl Renderer2d {
     pub fn buffer(&self) -> &FrameBuffer {
         &self.buffer
     }
-}
 
-impl Renderer for Renderer2d {
-    fn width(&self) -> f32 {
-        self.width
-    }
-
-    fn height(&self) -> f32 {
-        self.height
-    }
-
-    fn clear(&mut self, color: Color) {
-        self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
-    }
-
-    // TODO: Make this an impl detail?
     fn put_pixel(&mut self, position: Vec2, color: Color) {
         let x = position.x;
         let y = self.height - position.y;
@@ -68,6 +53,20 @@ impl Renderer for Renderer2d {
             self.buffer.data[(y * self.width + x) as usize] =
                 Color::linear_blend(color, dst).into();
         }
+    }
+}
+
+impl Renderer for Renderer2d {
+    fn width(&self) -> f32 {
+        self.width
+    }
+
+    fn height(&self) -> f32 {
+        self.height
+    }
+
+    fn clear(&mut self, color: Color) {
+        self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
     }
 
     fn draw(&mut self, position: Vec2, color: Color) {
@@ -144,7 +143,7 @@ impl Renderer for Renderer2d {
                 let a = sprite_data[offset + 3];
                 let color = Color::rgba(r, g, b, a);
 
-                self.put_pixel(position, color);
+                self.draw(position, color);
             }
         }
     }

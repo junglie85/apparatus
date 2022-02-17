@@ -265,7 +265,7 @@ impl Game for PerlinNoise {
 
 fn main() -> Result<()> {
     let settings = Settings::default()
-        .with_window_size(250, 180)
+        .with_screen_size(250, 180)
         .with_pixel_size(2, 2);
     apparatus::run::<PerlinNoise>("Perlin Noise", settings)?;
 
