@@ -8,11 +8,14 @@
 /// - 2 => 2D Perlin noise.
 use anyhow::Result;
 use rand::prelude::*;
-use rand::Rng;
 
+use apparatus::color;
 use apparatus::color::Color;
+use apparatus::engine::apparatus::{Apparatus, ApparatusSettings};
+use apparatus::engine::game::Game;
+use apparatus::engine::key::Key;
 use apparatus::errors::ApparatusError;
-use apparatus::{color, lerp, Apparatus, ApparatusSettings, Game, Key};
+use apparatus::maths::lerp;
 
 fn generate_noise_seed(output_size: usize, noise_seed: &mut Vec<f32>, rng: &mut ThreadRng) {
     unsafe { noise_seed.set_len(output_size) };

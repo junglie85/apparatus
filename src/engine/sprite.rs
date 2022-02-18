@@ -1,5 +1,6 @@
-use image::io::Reader;
 use std::io::Cursor;
+
+use image::io::Reader;
 
 pub struct Sprite {
     width: u32,

@@ -1,4 +1,5 @@
-use crate::{Apparatus, ApparatusError};
+use crate::engine::apparatus::Apparatus;
+use crate::errors::ApparatusError;
 
 pub trait Game<Game = Self> {
     /// Called once, after the engine has initialised.

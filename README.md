@@ -4,32 +4,38 @@ Apparatus is a game engine that takes its inspiration from a number of sources i
 
 ## Getting started
 
-Implement the `Game` trait and run the `GameEngine`:
+Implement the `Game` trait and tell the `Apparatus` to `run` it:
 
 ```rust
 use anyhow::Result;
-use apparatus::color::Color;
-use apparatus::errors::ApparatusError;
-use apparatus::{clamp, Game, Input, Key, Renderer, Settings};
 use log::info;
-use std::time::Duration;
+
+use apparatus::color::Color;
+use apparatus::engine::apparatus::{Apparatus, ApparatusSettings};
+use apparatus::engine::game::Game;
+use apparatus::engine::key::Key;
+use apparatus::errors::ApparatusError;
+use apparatus::maths::clamp;
 
 struct Example {
     color: Color,
 }
 
 impl Game for Example {
-    fn on_create() -> Result<Self, ApparatusError> {
+    fn on_create(_screen_width: usize, _screen_height: usize) -> Result<Self, ApparatusError> {
         let game = Example {
             color: Color::rgba(128, 128, 128, 255),
         };
 
         Ok(game)
     }
-    fn on_update(&mut self, input: &impl Input, dt: Duration) {
+
+    fn on_update(&mut self, app: &mut Apparatus) {
         info!("updating");
 
-        if input.is_key_held(Key::Up) {
+        let dt = app.elapsed_time();
+
+        if app.is_key_held(Key::Up) {
             let r = clamp(
                 0.0,
                 self.color.r() as f32 + (100.0 * dt.as_secs_f32()),
@@ -49,7 +55,7 @@ impl Game for Example {
             self.color = Color::rgba(r, g, b, 255);
         }
 
-        if input.is_key_held(Key::Down) {
+        if app.is_key_held(Key::Down) {
             let r = clamp(
                 0.0,
                 self.color.r() as f32 - (50.0 * dt.as_secs_f32()),
@@ -68,20 +74,20 @@ impl Game for Example {
 
             self.color = Color::rgba(r, g, b, 255);
         }
-    }
 
-    fn on_render(&self, renderer: &mut impl Renderer) {
         info!("rendering");
 
-        renderer.clear(self.color);
+        app.clear(self.color);
     }
 }
 
 fn main() -> Result<()> {
-    apparatus::run::<Example>("Getting started", Settings::default())?;
+    let engine = Apparatus::new("Getting Started", ApparatusSettings::default())?;
+    engine.run::<Example>()?;
 
     Ok(())
 }
+
 ```
 
 See the [examples](#examples) for more in-depth usage. 

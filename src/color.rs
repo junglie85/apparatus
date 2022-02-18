@@ -1,5 +1,6 @@
-use crate::lerp;
 use std::fmt::{Debug, Display, Formatter};
+
+use crate::maths::lerp;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Color([u8; 4]); // [a, r, g, b]

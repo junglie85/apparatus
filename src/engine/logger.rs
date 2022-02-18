@@ -1,5 +1,6 @@
-use crate::ApparatusError;
 use flexi_logger::{FileSpec, Logger as FlexiLogger, WriteMode};
+
+use crate::errors::ApparatusError;
 
 pub(crate) struct Logger {
     _handle: flexi_logger::LoggerHandle,

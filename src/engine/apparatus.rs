@@ -1,15 +1,19 @@
+use std::time::Duration;
+
+use log::error;
+
+use crate::{color, util};
 use crate::color::Color;
 use crate::engine::clock::Clock;
+use crate::engine::game::Game;
+use crate::engine::key::Key;
 use crate::engine::logger::Logger;
-use crate::maths::Vec2;
+use crate::engine::sprite::Sprite;
+use crate::errors::ApparatusError;
+use crate::platform::framebuffer::FrameBuffer;
 use crate::platform::input::Input;
 use crate::platform::window::Window;
-use crate::platform::FrameBuffer;
-use crate::renderer::renderer2d::Renderer2d;
-use crate::util::{get_sleep_tolerance, sleep};
-use crate::{color, ApparatusError, Game, Key, Sprite};
-use log::error;
-use std::time::Duration;
+use crate::renderer::software_2d::Renderer;
 
 pub struct ApparatusSettings {
     width: usize,
@@ -58,7 +62,7 @@ pub struct Apparatus {
     _logger: Logger,
     clock: Clock,
     window: Window,
-    renderer: Renderer2d,
+    renderer: Renderer,
     input: Input,
     target_frame_duration: Duration,
     running: bool,
@@ -80,7 +84,7 @@ impl Apparatus {
 
         let window = Window::new(name, window_width, window_height)?;
         let frame_buffer = FrameBuffer::new(window_width as usize, window_height as usize);
-        let renderer = Renderer2d::new(
+        let renderer = Renderer::new(
             window_width,
             window_height,
             pixel_width,
@@ -133,7 +137,7 @@ impl Apparatus {
 
             let elapsed = self.clock.elapsed();
             if elapsed < self.target_frame_duration {
-                if let Err(e) = sleep(self.target_frame_duration - elapsed) {
+                if let Err(e) = util::sleep(self.target_frame_duration - elapsed) {
                     error!("{}", e);
                 }
             }
@@ -148,28 +152,33 @@ impl Apparatus {
                 let height = self.window_height;
                 let debug_box_left = width - 190.0;
                 self.renderer.fill_rect(
-                    Vec2::new(debug_box_left, height),
-                    Vec2::new(width, height - 50.0),
+                    debug_box_left,
+                    height,
+                    width,
+                    height - 50.0,
                     color::css::SILVER,
                 );
                 self.renderer.draw_string(
                     format!("ms/F: {:.2}", self.clock.delta().as_secs_f32() * 1_000.0),
-                    Vec2::new(width - 180.0, height - 20.0),
+                    width - 180.0,
+                    height - 20.0,
                     color::css::BLACK,
                     12.0,
                 );
                 self.renderer.draw_string(
                     format!("FPS: {:.2}", fps),
-                    Vec2::new(width - 180.0, height - 30.0),
+                    width - 180.0,
+                    height - 30.0,
                     color::css::BLACK,
                     12.0,
                 );
                 self.renderer.draw_string(
                     format!(
                         "Sleep tolerance (ms): {}",
-                        get_sleep_tolerance().as_micros() as f32 / 1_000.0
+                        util::get_sleep_tolerance().as_micros() as f32 / 1_000.0
                     ),
-                    Vec2::new(width - 180.0, height - 40.0),
+                    width - 180.0,
+                    height - 40.0,
                     color::css::BLACK,
                     12.0,
                 );
@@ -226,15 +235,14 @@ impl Apparatus {
     }
 
     pub fn draw(&mut self, x: f32, y: f32, color: Color) {
-        self.renderer.draw(Vec2::new(x, y), color);
+        self.renderer.draw(x, y, color);
     }
 
     pub fn draw_string(&mut self, value: impl AsRef<str>, x: f32, y: f32, color: Color, size: f32) {
-        let origin = Vec2::new(x, y);
-        self.renderer.draw_string(value, origin, color, size);
+        self.renderer.draw_string(value, x, y, color, size);
     }
 
     pub fn draw_sprite(&mut self, x: f32, y: f32, sprite: &Sprite) {
-        self.renderer.draw_sprite(sprite, Vec2::new(x, y));
+        self.renderer.draw_sprite(x, y, sprite);
     }
 }

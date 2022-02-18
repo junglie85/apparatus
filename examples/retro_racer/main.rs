@@ -32,9 +32,14 @@ use std::time::Duration;
 
 use anyhow::Result;
 
-use apparatus::{Apparatus, ApparatusSettings, clamp, color, Game, Key, Sprite};
+use apparatus::color;
 use apparatus::color::Color;
+use apparatus::engine::apparatus::{Apparatus, ApparatusSettings};
+use apparatus::engine::game::Game;
+use apparatus::engine::key::Key;
+use apparatus::engine::sprite::Sprite;
 use apparatus::errors::ApparatusError;
+use apparatus::maths::clamp;
 
 struct TrackSegment {
     curvature: f32,

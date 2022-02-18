@@ -1,5 +1,5 @@
-use crate::platform::FrameBuffer;
-use crate::ApparatusError;
+use crate::errors::ApparatusError;
+use crate::platform::framebuffer::FrameBuffer;
 
 pub struct Window {
     width: f32,

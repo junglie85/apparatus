@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use crate::engine::key::*;
 use crate::platform::window::Window;
-use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 struct KeyState {

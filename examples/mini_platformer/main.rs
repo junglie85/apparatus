@@ -1,7 +1,8 @@
 use anyhow::Result;
 
+use apparatus::engine::apparatus::{Apparatus, ApparatusSettings};
+use apparatus::engine::game::Game;
 use apparatus::errors::ApparatusError;
-use apparatus::{Apparatus, ApparatusSettings, Game};
 
 struct MiniPlatformer {}
 

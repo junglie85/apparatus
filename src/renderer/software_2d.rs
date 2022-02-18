@@ -1,10 +1,11 @@
 use crate::color::Color;
-use crate::font::{self, Font};
-use crate::maths::{clamp, Vec2};
-use crate::platform::FrameBuffer;
-use crate::Sprite;
+use crate::engine::sprite::Sprite;
+use crate::font;
+use crate::font::Font;
+use crate::maths::clamp;
+use crate::platform::framebuffer::FrameBuffer;
 
-pub struct Renderer2d {
+pub struct Renderer {
     width: f32,
     height: f32,
     pixel_width: usize,
@@ -13,7 +14,7 @@ pub struct Renderer2d {
     default_font: Font,
 }
 
-impl Renderer2d {
+impl Renderer {
     pub fn new(
         width: f32,
         height: f32,
@@ -37,9 +38,8 @@ impl Renderer2d {
         &self.buffer
     }
 
-    pub fn put_pixel(&mut self, position: Vec2, color: Color) {
-        let x = position.x;
-        let y = self.height - position.y;
+    pub fn put_pixel(&mut self, x: f32, y: f32, color: Color) {
+        let y = self.height - y;
 
         // TODO: transmute?
         if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height {
@@ -59,23 +59,24 @@ impl Renderer2d {
         self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
     }
 
-    // TODO: This is engine logic as virtual pixels is an engine concept.
-    pub fn draw(&mut self, position: Vec2, color: Color) {
-        let x = position.x * self.pixel_width as f32;
-        let y = position.y * self.pixel_height as f32;
+    pub fn draw(&mut self, x: f32, y: f32, color: Color) {
+        let x = x * self.pixel_width as f32;
+        let y = y * self.pixel_height as f32;
         for pixel_y in 0..self.pixel_height {
             for pixel_x in 0..self.pixel_width {
-                let position = Vec2::new(x + pixel_x as f32, y + pixel_y as f32);
-                self.put_pixel(position, color);
+                let x = x + pixel_x as f32;
+                let y = y + pixel_y as f32;
+                self.put_pixel(x, y, color);
             }
         }
     }
 
-    pub fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color) {
-        let mut x1 = clamp(0.0, from.x, self.width);
-        let mut x2 = clamp(0.0, to.x, self.width);
-        let mut y1 = clamp(0.0, from.y, self.height);
-        let mut y2 = clamp(0.0, to.y, self.height);
+    pub fn fill_rect(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, color: Color) {
+        let mut x1 = clamp(0.0, x1, self.width);
+        let mut y1 = clamp(0.0, y1, self.height);
+
+        let mut x2 = clamp(0.0, x2, self.width);
+        let mut y2 = clamp(0.0, y2, self.height);
 
         if x1 > x2 {
             std::mem::swap(&mut x1, &mut x2);
@@ -87,29 +88,27 @@ impl Renderer2d {
 
         for y in y1 as u32..=y2 as u32 {
             for x in x1 as u32..=x2 as u32 {
-                self.put_pixel(Vec2::new(x as f32, y as f32), color);
+                self.put_pixel(x as f32, y as f32, color);
             }
         }
     }
 
-    pub fn draw_string(&mut self, value: impl AsRef<str>, origin: Vec2, color: Color, size: f32) {
+    pub fn draw_string(&mut self, value: impl AsRef<str>, x: f32, y: f32, color: Color, size: f32) {
         let mut character_offset_x = 0.0;
         for c in value.as_ref().chars() {
             let rasterized = font::rasterize(c, &self.default_font, size);
 
-            for y in 0..rasterized.height {
-                for x in 0..rasterized.width {
+            for rasterized_y in 0..rasterized.height {
+                for rasterized_x in 0..rasterized.width {
                     let font_color = Color::rgba(
                         color.r(),
                         color.g(),
                         color.b(),
-                        rasterized.data[y * rasterized.width + x],
+                        rasterized.data[rasterized_y * rasterized.width + rasterized_x],
                     );
                     self.put_pixel(
-                        Vec2::new(
-                            origin.x + character_offset_x + rasterized.xmin as f32 + x as f32,
-                            origin.y + rasterized.ymin as f32 + (rasterized.height - y) as f32,
-                        ),
+                        x + character_offset_x + rasterized.xmin as f32 + rasterized_x as f32,
+                        y + rasterized.ymin as f32 + (rasterized.height - rasterized_y) as f32,
                         font_color,
                     );
                 }
@@ -119,12 +118,11 @@ impl Renderer2d {
         }
     }
 
-    pub fn draw_sprite(&mut self, sprite: &Sprite, pos: Vec2) {
+    pub fn draw_sprite(&mut self, x: f32, y: f32, sprite: &Sprite) {
         for sprite_y in 0..sprite.height() as usize {
             for sprite_x in 0..sprite.width() as usize {
-                let x = pos.x + sprite_x as f32;
-                let y = pos.y + (sprite.height() as usize - sprite_y) as f32;
-                let position = Vec2::new(x, y);
+                let x = x + sprite_x as f32;
+                let y = y + (sprite.height() as usize - sprite_y) as f32;
 
                 let offset = (sprite_y * sprite.width() as usize + sprite_x) * 4;
                 let sprite_data = sprite.data();
@@ -134,7 +132,7 @@ impl Renderer2d {
                 let a = sprite_data[offset + 3];
                 let color = Color::rgba(r, g, b, a);
 
-                self.draw(position, color);
+                self.draw(x, y, color);
             }
         }
     }

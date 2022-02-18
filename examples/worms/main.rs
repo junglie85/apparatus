@@ -1,6 +1,7 @@
 use anyhow::Result;
 
-use apparatus::{Apparatus, ApparatusSettings, Game};
+use apparatus::engine::apparatus::{Apparatus, ApparatusSettings};
+use apparatus::engine::game::Game;
 use apparatus::errors::ApparatusError;
 
 // Implementation notes:

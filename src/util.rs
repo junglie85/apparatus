@@ -1,7 +1,8 @@
-use crate::engine::clock::Clock;
-
 use std::time::Duration;
+
 use thiserror::Error;
+
+use crate::engine::clock::Clock;
 
 static mut SLEEP_TOLERANCE: Duration = Duration::from_micros(0);
 
