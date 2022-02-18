@@ -31,10 +31,7 @@ impl Worms {
 }
 
 impl Game for Worms {
-    fn on_create(
-        _screen_width: usize,
-        _screen_height: usize,
-    ) -> std::result::Result<Self, ApparatusError> {
+    fn on_create(_app: &Apparatus) -> std::result::Result<Self, ApparatusError> {
         let worms = Worms::new();
 
         Ok(worms)

@@ -7,10 +7,7 @@ use apparatus::errors::ApparatusError;
 struct MiniPlatformer {}
 
 impl Game for MiniPlatformer {
-    fn on_create(
-        _screen_width: usize,
-        _screen_height: usize,
-    ) -> std::result::Result<Self, ApparatusError> {
+    fn on_create(_app: &Apparatus) -> std::result::Result<Self, ApparatusError> {
         Ok(Self {})
     }
 

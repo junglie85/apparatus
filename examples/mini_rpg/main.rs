@@ -7,7 +7,7 @@ use apparatus::errors::ApparatusError;
 struct MiniRpg {}
 
 impl Game for MiniRpg {
-    fn on_create(_screen_width: usize, _screen_height: usize) -> Result<Self, ApparatusError> {
+    fn on_create(_app: &Apparatus) -> Result<Self, ApparatusError> {
         Ok(Self {})
     }
 

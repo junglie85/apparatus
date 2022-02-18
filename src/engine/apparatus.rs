@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use log::error;
 
-use crate::{color, util};
 use crate::color::Color;
 use crate::engine::clock::Clock;
 use crate::engine::game::Game;
@@ -14,6 +13,7 @@ use crate::platform::framebuffer::FrameBuffer;
 use crate::platform::input::Input;
 use crate::platform::window::Window;
 use crate::renderer::software_2d::Renderer;
+use crate::{color, util};
 
 pub struct ApparatusSettings {
     width: usize,
@@ -121,7 +121,7 @@ impl Apparatus {
     where
         G: Game,
     {
-        let mut game = G::on_create(self.screen_width, self.screen_height)?;
+        let mut game = G::on_create(&self)?;
 
         self.clock.tick();
 

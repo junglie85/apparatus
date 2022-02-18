@@ -1,3 +1,31 @@
+// Perlin Noise is a derivative of [Programming Perlin-like Noise (C++)](https://youtu.be/6-0UaeJBumA)
+// by javidx9 and is subject to the following license:
+//
+// License (OLC-3)
+// Copyright 2018-2021 OneLoneCoder.com
+//
+// Redistribution and use in source and binary forms, with or without modification, are permitted
+// provided that the following conditions are met:
+//
+// Redistributions or derivations of source code must retain the above copyright notice, this list
+// of conditions and the following disclaimer.
+//
+// Redistributions or derivative works in binary form must reproduce the above copyright notice.
+// This list of conditions and the following disclaimer must be reproduced in the documentation
+// and/or other materials provided with the distribution.
+//
+// Neither the name of the copyright holder nor the names of its contributors may be used to endorse
+// or promote products derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+// IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+// FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+// WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 /// Example showing how to generate 1D and 2D Perlin Noise.
 /// Controls:
 /// - Space bar => Cycle through octaves 1 - 8.
@@ -150,13 +178,10 @@ impl PerlinNoise {
 }
 
 impl Game for PerlinNoise {
-    fn on_create(
-        screen_width: usize,
-        screen_height: usize,
-    ) -> std::result::Result<Self, ApparatusError> {
-        let output_size = screen_width;
-        let output_width = screen_width;
-        let output_height = screen_height;
+    fn on_create(app: &Apparatus) -> std::result::Result<Self, ApparatusError> {
+        let output_size = app.screen_width();
+        let output_width = app.screen_width();
+        let output_height = app.screen_height();
         let rng = rand::thread_rng();
         let mut perlin_noise = PerlinNoise::new(output_size, output_width, output_height, rng);
 

@@ -4,7 +4,7 @@ Apparatus is a game engine that takes its inspiration from a number of sources i
 
 ## Getting started
 
-Implement the `Game` trait and tell the `Apparatus` to `run` it:
+Implement the `Game` trait and tell the `Apparatus` to `run` your struct:
 
 ```rust
 use anyhow::Result;
@@ -22,10 +22,13 @@ struct Example {
 }
 
 impl Game for Example {
-    fn on_create(_screen_width: usize, _screen_height: usize) -> Result<Self, ApparatusError> {
-        let game = Example {
-            color: Color::rgba(128, 128, 128, 255),
-        };
+    fn on_create(app: &Apparatus) -> Result<Self, ApparatusError> {
+        let r = app.screen_width() % 255;
+        let g = app.screen_height() % 255;
+        let b = (app.screen_width() * app.screen_height()) % 255;
+        let color = Color::rgba(r as u8, g as u8, b as u8, 255);
+
+        let game = Example { color };
 
         Ok(game)
     }
