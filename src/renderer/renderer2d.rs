@@ -1,9 +1,8 @@
 use crate::color::Color;
-use crate::engine::Renderer;
 use crate::font::{self, Font};
 use crate::maths::{clamp, Vec2};
 use crate::platform::FrameBuffer;
-use crate::Sprite;
+use crate::{Renderer, Sprite};
 
 pub struct Renderer2d {
     width: f32,

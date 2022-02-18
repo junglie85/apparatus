@@ -1,6 +1,6 @@
 use anyhow::Result;
 use apparatus::errors::ApparatusError;
-use apparatus::{Game, Input, Renderer, Settings};
+use apparatus::{Engine, Game, Input, Renderer, Settings};
 use std::time::Duration;
 
 struct MiniPlatformer {}
@@ -25,7 +25,8 @@ impl Game for MiniPlatformer {
 }
 
 fn main() -> Result<()> {
-    apparatus::run::<MiniPlatformer>("Mini Platformer", Settings::default())?;
+    let engine = Engine::new("Mini Platformer", Settings::default());
+    engine.run::<MiniPlatformer>()?;
 
     Ok(())
 }

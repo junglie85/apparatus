@@ -1,7 +1,7 @@
 use anyhow::Result;
 use apparatus::color::Color;
 use apparatus::errors::ApparatusError;
-use apparatus::{color, lerp, Game, Input, Key, Renderer, Settings, Vec2};
+use apparatus::{color, lerp, Engine, Game, Input, Key, Renderer, Settings, Vec2};
 use rand::Rng;
 use std::time::Duration;
 
@@ -130,7 +130,8 @@ fn main() -> Result<()> {
     let settings = Settings::default()
         .with_screen_size(250, 180)
         .with_pixel_size(2, 2);
-    apparatus::run::<Worms>("Worms", settings)?;
+    let engine = Engine::new("Worms", settings);
+    engine.run::<Worms>()?;
 
     Ok(())
 }

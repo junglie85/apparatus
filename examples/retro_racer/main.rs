@@ -30,7 +30,7 @@
 use anyhow::Result;
 use apparatus::color::Color;
 use apparatus::errors::ApparatusError;
-use apparatus::{clamp, color, Game, Input, Key, Renderer, Settings, Sprite, Vec2};
+use apparatus::{clamp, color, Engine, Game, Input, Key, Renderer, Settings, Sprite, Vec2};
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -352,7 +352,9 @@ fn main() -> Result<()> {
     let settings = Settings::default()
         .with_screen_size(320, 180)
         .with_pixel_size(4, 4);
-    apparatus::run::<RetroRacer>("Retro Racer!", settings)?;
+
+    let engine = Engine::new("Retro Racer!", settings);
+    engine.run::<RetroRacer>()?;
 
     Ok(())
 }
