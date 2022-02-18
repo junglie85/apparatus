@@ -1,7 +1,7 @@
 use anyhow::Result;
+
 use apparatus::errors::ApparatusError;
-use apparatus::{Engine, Game, Input, Renderer, Settings};
-use std::time::Duration;
+use apparatus::{Apparatus, ApparatusSettings, Game};
 
 struct MiniRpg {}
 
@@ -10,19 +10,11 @@ impl Game for MiniRpg {
         Ok(Self {})
     }
 
-    fn on_update(&mut self, _input: &impl Input, _dt: Duration) {}
-
-    fn on_render(
-        &self,
-        _screen_width: usize,
-        _screen_height: usize,
-        _renderer: &mut impl Renderer,
-    ) {
-    }
+    fn on_update(&mut self, _app: &mut Apparatus) {}
 }
 
 fn main() -> Result<()> {
-    let engine = Engine::new("Mini RPG", Settings::default());
+    let engine = Apparatus::new("Mini RPG", ApparatusSettings::default())?;
     engine.run::<MiniRpg>()?;
 
     Ok(())

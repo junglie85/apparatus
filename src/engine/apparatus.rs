@@ -1,23 +1,24 @@
+use crate::color::Color;
 use crate::engine::clock::Clock;
 use crate::engine::logger::Logger;
 use crate::maths::Vec2;
-use crate::platform::input::PlatformInput;
+use crate::platform::input::Input;
 use crate::platform::window::Window;
 use crate::platform::FrameBuffer;
 use crate::renderer::renderer2d::Renderer2d;
 use crate::util::{get_sleep_tolerance, sleep};
-use crate::{color, ApparatusError, Game, Renderer};
+use crate::{color, ApparatusError, Game, Key, Sprite};
 use log::error;
 use std::time::Duration;
 
-pub struct Settings {
+pub struct ApparatusSettings {
     width: usize,
     height: usize,
     pixel_width: usize,
     pixel_height: usize,
 }
 
-impl Default for Settings {
+impl Default for ApparatusSettings {
     fn default() -> Self {
         Self {
             width: 1280,
@@ -28,7 +29,7 @@ impl Default for Settings {
     }
 }
 
-impl Settings {
+impl ApparatusSettings {
     /// Set the number of pixels in width and height for each "virtual pixel".
     /// Defaults to 1 x 1.
     pub fn with_pixel_size(mut self, width: usize, height: usize) -> Self {
@@ -46,106 +47,124 @@ impl Settings {
     }
 }
 
-pub struct Engine<'a> {
-    name: &'a str,
+pub struct Apparatus {
     pixel_width: usize,
     pixel_height: usize,
     screen_width: usize,
     screen_height: usize,
-    window_dimensions: Vec2,
+    window_width: f32,
+    window_height: f32,
+
+    _logger: Logger,
+    clock: Clock,
+    window: Window,
+    renderer: Renderer2d,
+    input: Input,
+    target_frame_duration: Duration,
+    running: bool,
 }
 
-impl<'a> Engine<'a> {
-    pub fn new(name: &'a str, settings: Settings) -> Engine<'a> {
+impl Apparatus {
+    pub fn new(name: &str, settings: ApparatusSettings) -> Result<Apparatus, ApparatusError> {
         let pixel_width = settings.pixel_width;
         let pixel_height = settings.pixel_height;
         let screen_width = settings.width;
         let screen_height = settings.height;
-        let window_dimensions = Vec2::new(
-            (screen_width * pixel_width) as f32,
-            (screen_height * pixel_height) as f32,
-        );
+        let window_width = (screen_width * pixel_width) as f32;
+        let window_height = (screen_height * pixel_height) as f32;
 
-        Self {
-            name,
-            pixel_width,
-            pixel_height,
-            screen_width,
-            screen_height,
-            window_dimensions,
-        }
-    }
-
-    pub fn run<G>(self) -> Result<(), ApparatusError>
-    where
-        G: Game,
-    {
         let _logger = Logger::init()?;
 
         let mut clock = Clock::default();
         clock.tick();
 
-        let mut window = Window::new(self.name, self.window_dimensions)?;
-        let frame_buffer = FrameBuffer::new(self.window_dimensions);
-        let mut renderer = Renderer2d::new(
-            self.window_dimensions,
-            self.pixel_width,
-            self.pixel_height,
+        let window = Window::new(name, window_width, window_height)?;
+        let frame_buffer = FrameBuffer::new(window_width as usize, window_height as usize);
+        let renderer = Renderer2d::new(
+            window_width,
+            window_height,
+            pixel_width,
+            pixel_height,
             frame_buffer,
         );
-        let mut input = PlatformInput::new();
-
-        let mut game = G::on_create(self.screen_width, self.screen_height)?;
+        let input = Input::new();
 
         let target_frame_duration = Duration::from_secs_f32(1.0 / 60.0);
 
-        let mut running = true;
-        while running {
-            if window.should_close() {
-                running = false;
+        let running = false;
+
+        let app = Self {
+            pixel_width,
+            pixel_height,
+            screen_width,
+            screen_height,
+            window_width,
+            window_height,
+
+            _logger,
+            clock,
+            window,
+            renderer,
+            input,
+            target_frame_duration,
+            running,
+        };
+
+        Ok(app)
+    }
+
+    pub fn run<G>(mut self) -> Result<(), ApparatusError>
+    where
+        G: Game,
+    {
+        let mut game = G::on_create(self.screen_width, self.screen_height)?;
+
+        self.clock.tick();
+
+        self.running = true;
+        while self.running {
+            if self.window.should_close() {
+                self.running = false;
             }
 
-            input.process_input(&window);
+            self.input.process_input(&self.window);
 
-            game.on_update(&input, target_frame_duration);
-            game.on_render(self.screen_width, self.screen_height, &mut renderer);
+            game.on_update(&mut self);
 
-            let elapsed = clock.elapsed();
-            if elapsed < target_frame_duration {
-                if let Err(e) = sleep(target_frame_duration - elapsed) {
+            let elapsed = self.clock.elapsed();
+            if elapsed < self.target_frame_duration {
+                if let Err(e) = sleep(self.target_frame_duration - elapsed) {
                     error!("{}", e);
                 }
             }
 
-            clock.tick();
+            self.clock.tick();
 
             // Stats.
             #[cfg(debug_assertions)]
             {
-                let fps = 1.0 / clock.delta().as_secs_f32();
-                let Vec2 {
-                    x: width,
-                    y: height,
-                } = self.window_dimensions;
+                let fps = 1.0 / self.clock.delta().as_secs_f32();
+                let width = self.window_width;
+                let height = self.window_height;
                 let debug_box_left = width - 190.0;
-                renderer.fill_rect(
+                self.renderer.fill_rect(
                     Vec2::new(debug_box_left, height),
                     Vec2::new(width, height - 50.0),
                     color::css::SILVER,
                 );
-                renderer.draw_string(
-                    format!("ms/F: {:.2}", clock.delta().as_secs_f32() * 1_000.0),
+                self.renderer.draw_string(
+                    format!("ms/F: {:.2}", self.clock.delta().as_secs_f32() * 1_000.0),
                     Vec2::new(width - 180.0, height - 20.0),
                     color::css::BLACK,
                     12.0,
                 );
-                renderer.draw_string(
+                self.renderer.draw_string(
                     format!("FPS: {:.2}", fps),
                     Vec2::new(width - 180.0, height - 30.0),
                     color::css::BLACK,
                     12.0,
                 );
-                renderer.draw_string(
+                self.renderer.draw_string(
                     format!(
                         "Sleep tolerance (ms): {}",
                         get_sleep_tolerance().as_micros() as f32 / 1_000.0
@@ -156,9 +175,66 @@ impl<'a> Engine<'a> {
                 );
             }
 
-            window.display(renderer.buffer())?;
+            self.window.display(self.renderer.buffer())?;
         }
 
         Ok(())
+    }
+
+    // ----- Info -----
+    pub fn pixel_width(&self) -> usize {
+        self.pixel_width
+    }
+
+    pub fn pixel_height(&self) -> usize {
+        self.pixel_height
+    }
+
+    pub fn screen_width(&self) -> usize {
+        self.screen_width
+    }
+
+    pub fn screen_height(&self) -> usize {
+        self.screen_height
+    }
+
+    pub fn window_width(&self) -> f32 {
+        self.window_width
+    }
+
+    pub fn window_height(&self) -> f32 {
+        self.window_height
+    }
+
+    // ----- Timing -----
+    pub fn elapsed_time(&self) -> Duration {
+        self.target_frame_duration
+    }
+
+    // ----- Input -----
+    pub fn is_key_held(&self, key: Key) -> bool {
+        self.input.is_key_held(key)
+    }
+
+    pub fn was_key_released(&self, key: Key) -> bool {
+        self.input.was_key_released(key)
+    }
+
+    // ----- Graphics -----
+    pub fn clear(&mut self, color: Color) {
+        self.renderer.clear(color);
+    }
+
+    pub fn draw(&mut self, x: f32, y: f32, color: Color) {
+        self.renderer.draw(Vec2::new(x, y), color);
+    }
+
+    pub fn draw_string(&mut self, value: impl AsRef<str>, x: f32, y: f32, color: Color, size: f32) {
+        let origin = Vec2::new(x, y);
+        self.renderer.draw_string(value, origin, color, size);
+    }
+
+    pub fn draw_sprite(&mut self, x: f32, y: f32, sprite: &Sprite) {
+        self.renderer.draw_sprite(sprite, Vec2::new(x, y));
     }
 }

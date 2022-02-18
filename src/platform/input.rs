@@ -1,4 +1,4 @@
-use crate::engine::input::*;
+use crate::engine::key::*;
 use crate::platform::window::Window;
 use std::collections::HashMap;
 
@@ -14,11 +14,11 @@ impl KeyState {
     }
 }
 
-pub struct PlatformInput {
+pub struct Input {
     keys: HashMap<Key, KeyState>,
 }
 
-impl PlatformInput {
+impl Input {
     pub fn new() -> Self {
         let keys = HashMap::new();
 
@@ -78,17 +78,15 @@ impl PlatformInput {
 
         self.keys = keys;
     }
-}
 
-impl Input for PlatformInput {
-    fn is_key_held(&self, key: Key) -> bool {
+    pub fn is_key_held(&self, key: Key) -> bool {
         match self.keys.get(&key) {
             Some(key) => key.is_down && key.was_down,
             None => false,
         }
     }
 
-    fn was_key_released(&self, key: Key) -> bool {
+    pub fn was_key_released(&self, key: Key) -> bool {
         match self.keys.get(&key) {
             Some(key) => !key.is_down && key.was_down,
             None => false,
@@ -119,18 +117,17 @@ impl From<Key> for NativeKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Input;
 
     #[test]
     fn key_not_pressed_is_not_held() {
-        let input = PlatformInput::new();
+        let input = Input::new();
 
         assert!(!input.is_key_held(Key::Up));
     }
 
     #[test]
     fn key_pressed_is_held() {
-        let mut input = PlatformInput::new();
+        let mut input = Input::new();
         let key_state = KeyState {
             is_down: true,
             was_down: true,
@@ -142,14 +139,14 @@ mod test {
 
     #[test]
     fn key_not_pressed_is_not_released() {
-        let input = PlatformInput::new();
+        let input = Input::new();
 
         assert!(!input.was_key_released(Key::Space));
     }
 
     #[test]
     fn key_held_is_not_released() {
-        let mut input = PlatformInput::new();
+        let mut input = Input::new();
         let key_state = KeyState {
             is_down: true,
             was_down: true,
@@ -161,7 +158,7 @@ mod test {
 
     #[test]
     fn key_previously_held_is_released() {
-        let mut input = PlatformInput::new();
+        let mut input = Input::new();
         let key_state = KeyState {
             is_down: false,
             was_down: true,

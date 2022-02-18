@@ -27,12 +27,14 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use anyhow::Result;
-use apparatus::color::Color;
-use apparatus::errors::ApparatusError;
-use apparatus::{clamp, color, Engine, Game, Input, Key, Renderer, Settings, Sprite, Vec2};
 use std::collections::VecDeque;
 use std::time::Duration;
+
+use anyhow::Result;
+
+use apparatus::{Apparatus, ApparatusSettings, clamp, color, Game, Key, Sprite};
+use apparatus::color::Color;
+use apparatus::errors::ApparatusError;
 
 struct TrackSegment {
     curvature: f32,
@@ -127,8 +129,10 @@ impl Game for RetroRacer {
         Ok(retro_racer)
     }
 
-    fn on_update(&mut self, input: &impl Input, dt: Duration) {
-        if input.is_key_held(Key::Up) {
+    fn on_update(&mut self, app: &mut Apparatus) {
+        let dt = app.elapsed_time();
+
+        if app.is_key_held(Key::Up) {
             self.speed += 2.0 * dt.as_secs_f32();
             self.distance += 100.0 * dt.as_secs_f32();
         } else {
@@ -137,12 +141,12 @@ impl Game for RetroRacer {
 
         self.direction = Direction::Forward;
 
-        if input.is_key_held(Key::Left) {
+        if app.is_key_held(Key::Left) {
             self.player_curvature -= 0.7 * dt.as_secs_f32();
             self.direction = Direction::Left;
         }
 
-        if input.is_key_held(Key::Right) {
+        if app.is_key_held(Key::Right) {
             self.player_curvature += 0.7 * dt.as_secs_f32();
             self.direction = Direction::Right;
         }
@@ -186,10 +190,12 @@ impl Game for RetroRacer {
 
         self.car_pos = self.player_curvature - self.track_curvature;
         self.car_pos = clamp(-0.95, self.car_pos, 0.95);
-    }
 
-    fn on_render(&self, screen_width: usize, screen_height: usize, renderer: &mut impl Renderer) {
-        renderer.clear(Color::rgba(204, 51, 204, 0));
+        // ------------------------------- Render ---------------------------------
+        app.clear(Color::rgba(204, 51, 204, 0));
+
+        let screen_height = app.screen_height();
+        let screen_width = app.screen_width();
 
         // Draw scenery.
         for y in (screen_height / 2)..screen_height {
@@ -201,7 +207,7 @@ impl Game for RetroRacer {
             for x in 0..screen_width {
                 let x = x as f32;
                 let y = y as f32;
-                renderer.draw(Vec2::new(x, y), sky);
+                app.draw(x, y, sky);
             }
         }
 
@@ -211,7 +217,7 @@ impl Game for RetroRacer {
             for y in (screen_height / 2)..((screen_height / 2) + hill_height) {
                 let x = x as f32;
                 let y = y as f32;
-                renderer.draw(Vec2::new(x, y), color::css::DARKGOLDENROD);
+                app.draw(x, y, color::css::DARKGOLDENROD);
             }
         }
 
@@ -256,19 +262,19 @@ impl Game for RetroRacer {
                 let x = x as f32;
                 let y = y as f32;
                 if x < left_grass {
-                    renderer.draw(Vec2::new(x, y), grass);
+                    app.draw(x, y, grass);
                 }
                 if x >= left_grass && x < left_clipboard {
-                    renderer.draw(Vec2::new(x, y), clipboard);
+                    app.draw(x, y, clipboard);
                 }
                 if x >= left_clipboard && x < right_clipboard {
-                    renderer.draw(Vec2::new(x, y), road);
+                    app.draw(x, y, road);
                 }
                 if x >= right_clipboard && x < right_grass {
-                    renderer.draw(Vec2::new(x, y), clipboard);
+                    app.draw(x, y, clipboard);
                 }
                 if x >= right_grass && x < screen_width as f32 {
-                    renderer.draw(Vec2::new(x, y), grass);
+                    app.draw(x, y, grass);
                 }
             }
         }
@@ -288,37 +294,42 @@ impl Game for RetroRacer {
                 - (car_sprite.width() as f32 / 2.0);
             let car_y = 30.0 * scale;
 
-            renderer.draw_sprite(car_sprite, Vec2::new(car_x as f32, car_y as f32));
+            app.draw_sprite(car_x as f32, car_y as f32, car_sprite);
         }
 
         // Draw stats.
-        renderer.draw_string(
+        app.draw_string(
             format!("Distance: {:.2}", self.distance),
-            Vec2::new(10.0, renderer.height() - 20.0),
+            10.0,
+            app.window_height() - 20.0,
             color::css::WHITE,
             12.0,
         );
-        renderer.draw_string(
+        app.draw_string(
             format!("Speed: {:.2}", self.speed),
-            Vec2::new(10.0, renderer.height() - 30.0),
+            10.0,
+            app.window_height() - 30.0,
             color::css::WHITE,
             12.0,
         );
-        renderer.draw_string(
+        app.draw_string(
             format!("Target curvature:: {:.2}", self.target_curvature),
-            Vec2::new(10.0, renderer.height() - 40.0),
+            10.0,
+            app.window_height() - 40.0,
             color::css::WHITE,
             12.0,
         );
-        renderer.draw_string(
+        app.draw_string(
             format!("Player curvature: {:.2}", self.player_curvature),
-            Vec2::new(10.0, renderer.height() - 50.0),
+            10.0,
+            app.window_height() - 50.0,
             color::css::WHITE,
             12.0,
         );
-        renderer.draw_string(
+        app.draw_string(
             format!("Track curvature: {:.2}", self.track_curvature),
-            Vec2::new(10.0, renderer.height() - 60.0),
+            10.0,
+            app.window_height() - 60.0,
             color::css::WHITE,
             12.0,
         );
@@ -330,17 +341,19 @@ impl Game for RetroRacer {
             format!("{:0>2}:{:>02}:{:3}", minutes, seconds, millis)
         }
 
-        renderer.draw_string(
+        app.draw_string(
             format!("Lap 0: {}", format_lap_time(&self.current_lap_time)),
-            Vec2::new(10.0, renderer.height() - 80.0),
+            10.0,
+            app.window_height() - 80.0,
             color::css::WHITE,
             12.0,
         );
 
         for (lap, lap_time) in self.lap_times.iter().enumerate() {
-            renderer.draw_string(
+            app.draw_string(
                 format!("Lap {}: {}", lap + 1, format_lap_time(lap_time)),
-                Vec2::new(10.0, renderer.height() as f32 - (90.0 + 10.0 * lap as f32)),
+                10.0,
+                app.window_height() as f32 - (90.0 + 10.0 * lap as f32),
                 color::css::WHITE,
                 12.0,
             );
@@ -349,12 +362,12 @@ impl Game for RetroRacer {
 }
 
 fn main() -> Result<()> {
-    let settings = Settings::default()
+    let settings = ApparatusSettings::default()
         .with_screen_size(320, 180)
         .with_pixel_size(4, 4);
 
-    let engine = Engine::new("Retro Racer!", settings);
-    engine.run::<RetroRacer>()?;
+    let app = Apparatus::new("Retro Racer!", settings)?;
+    app.run::<RetroRacer>()?;
 
     Ok(())
 }

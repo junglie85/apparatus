@@ -2,7 +2,7 @@ use crate::color::Color;
 use crate::font::{self, Font};
 use crate::maths::{clamp, Vec2};
 use crate::platform::FrameBuffer;
-use crate::{Renderer, Sprite};
+use crate::Sprite;
 
 pub struct Renderer2d {
     width: f32,
@@ -15,7 +15,8 @@ pub struct Renderer2d {
 
 impl Renderer2d {
     pub fn new(
-        window_dimensions: Vec2,
+        width: f32,
+        height: f32,
         pixel_width: usize,
         pixel_height: usize,
         buffer: FrameBuffer,
@@ -23,8 +24,8 @@ impl Renderer2d {
         let default_font = font::load_default_font();
 
         Self {
-            width: window_dimensions.x,
-            height: window_dimensions.y,
+            width,
+            height,
             pixel_width,
             pixel_height,
             buffer,
@@ -36,7 +37,7 @@ impl Renderer2d {
         &self.buffer
     }
 
-    fn put_pixel(&mut self, position: Vec2, color: Color) {
+    pub fn put_pixel(&mut self, position: Vec2, color: Color) {
         let x = position.x;
         let y = self.height - position.y;
 
@@ -53,22 +54,13 @@ impl Renderer2d {
                 Color::linear_blend(color, dst).into();
         }
     }
-}
 
-impl Renderer for Renderer2d {
-    fn width(&self) -> f32 {
-        self.width
-    }
-
-    fn height(&self) -> f32 {
-        self.height
-    }
-
-    fn clear(&mut self, color: Color) {
+    pub fn clear(&mut self, color: Color) {
         self.buffer.data = vec![color.into(); self.width as usize * self.height as usize];
     }
 
-    fn draw(&mut self, position: Vec2, color: Color) {
+    // TODO: This is engine logic as virtual pixels is an engine concept.
+    pub fn draw(&mut self, position: Vec2, color: Color) {
         let x = position.x * self.pixel_width as f32;
         let y = position.y * self.pixel_height as f32;
         for pixel_y in 0..self.pixel_height {
@@ -79,7 +71,7 @@ impl Renderer for Renderer2d {
         }
     }
 
-    fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color) {
+    pub fn fill_rect(&mut self, from: Vec2, to: Vec2, color: Color) {
         let mut x1 = clamp(0.0, from.x, self.width);
         let mut x2 = clamp(0.0, to.x, self.width);
         let mut y1 = clamp(0.0, from.y, self.height);
@@ -100,7 +92,7 @@ impl Renderer for Renderer2d {
         }
     }
 
-    fn draw_string(&mut self, value: impl AsRef<str>, origin: Vec2, color: Color, size: f32) {
+    pub fn draw_string(&mut self, value: impl AsRef<str>, origin: Vec2, color: Color, size: f32) {
         let mut character_offset_x = 0.0;
         for c in value.as_ref().chars() {
             let rasterized = font::rasterize(c, &self.default_font, size);
@@ -127,7 +119,7 @@ impl Renderer for Renderer2d {
         }
     }
 
-    fn draw_sprite(&mut self, sprite: &Sprite, pos: Vec2) {
+    pub fn draw_sprite(&mut self, sprite: &Sprite, pos: Vec2) {
         for sprite_y in 0..sprite.height() as usize {
             for sprite_x in 0..sprite.width() as usize {
                 let x = pos.x + sprite_x as f32;

@@ -1,4 +1,3 @@
-use crate::maths::Vec2;
 use crate::platform::FrameBuffer;
 use crate::ApparatusError;
 
@@ -9,10 +8,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub(crate) fn new(name: &str, dimensions: Vec2) -> Result<Self, ApparatusError> {
-        let width = dimensions.x;
-        let height = dimensions.y;
-
+    pub(crate) fn new(name: &str, width: f32, height: f32) -> Result<Self, ApparatusError> {
         let native_window = minifb::Window::new(
             name,
             width as usize,

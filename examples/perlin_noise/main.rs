@@ -1,11 +1,3 @@
-use anyhow::Result;
-use apparatus::color::Color;
-use apparatus::errors::ApparatusError;
-use apparatus::{color, lerp, Engine, Game, Input, Key, Renderer, Settings, Vec2};
-use rand::prelude::*;
-use rand::Rng;
-use std::time::Duration;
-
 /// Example showing how to generate 1D and 2D Perlin Noise.
 /// Controls:
 /// - Space bar => Cycle through octaves 1 - 8.
@@ -14,6 +6,13 @@ use std::time::Duration;
 /// - Z => Re-generate the noise seed data.
 /// - 1 => 1D Perlin noise.
 /// - 2 => 2D Perlin noise.
+use anyhow::Result;
+use rand::prelude::*;
+use rand::Rng;
+
+use apparatus::color::Color;
+use apparatus::errors::ApparatusError;
+use apparatus::{color, lerp, Apparatus, ApparatusSettings, Game, Key};
 
 fn generate_noise_seed(output_size: usize, noise_seed: &mut Vec<f32>, rng: &mut ThreadRng) {
     unsafe { noise_seed.set_len(output_size) };
@@ -172,16 +171,16 @@ impl Game for PerlinNoise {
         Ok(perlin_noise)
     }
 
-    fn on_update(&mut self, input: &impl Input, _dt: Duration) {
-        if input.was_key_released(Key::Space) {
+    fn on_update(&mut self, app: &mut Apparatus) {
+        if app.was_key_released(Key::Space) {
             self.octave_count += 1;
         }
 
-        if input.was_key_released(Key::Q) {
+        if app.was_key_released(Key::Q) {
             self.scaling_bias += 0.2;
         }
 
-        if input.was_key_released(Key::A) {
+        if app.was_key_released(Key::A) {
             self.scaling_bias -= 0.2;
         }
 
@@ -189,11 +188,11 @@ impl Game for PerlinNoise {
             self.scaling_bias = 0.2;
         }
 
-        if input.was_key_released(Key::Num1) {
+        if app.was_key_released(Key::Num1) {
             self.mode = Mode::OneDimension;
         }
 
-        if input.was_key_released(Key::Num2) {
+        if app.was_key_released(Key::Num2) {
             self.mode = Mode::TwoDimensionsGreyscale;
         }
 
@@ -203,7 +202,7 @@ impl Game for PerlinNoise {
 
         match self.mode {
             Mode::OneDimension => {
-                if input.was_key_released(Key::Z) {
+                if app.was_key_released(Key::Z) {
                     generate_noise_seed(self.output_size, &mut self.noise_seed_1d, &mut self.rng);
                 }
 
@@ -216,7 +215,7 @@ impl Game for PerlinNoise {
                 );
             }
             Mode::TwoDimensionsGreyscale => {
-                if input.was_key_released(Key::Z) {
+                if app.was_key_released(Key::Z) {
                     generate_noise_seed(
                         self.output_width * self.output_height,
                         &mut self.noise_seed_2d,
@@ -234,18 +233,16 @@ impl Game for PerlinNoise {
                 );
             }
         };
-    }
 
-    fn on_render(&self, screen_width: usize, screen_height: usize, renderer: &mut impl Renderer) {
-        renderer.clear(color::css::BLACK);
+        app.clear(color::css::BLACK);
 
         match self.mode {
             Mode::OneDimension => {
-                for x in 0..screen_width as usize {
-                    let y = (screen_height as f32 / 2.0)
-                        + (screen_height as f32 / 2.0 * self.perlin_noise_1d[x]);
-                    for f in (screen_height as f32 / 2.0) as usize..y as usize {
-                        renderer.draw(Vec2::new(x as f32, f as f32), color::css::GREEN);
+                for x in 0..app.screen_width() {
+                    let y = (app.screen_height() as f32 / 2.0)
+                        + (app.screen_height() as f32 / 2.0 * self.perlin_noise_1d[x]);
+                    for f in (app.screen_height() as f32 / 2.0) as usize..y as usize {
+                        app.draw(x as f32, f as f32, color::css::GREEN);
                     }
                 }
             }
@@ -255,7 +252,7 @@ impl Game for PerlinNoise {
                         let noise = self.perlin_noise_2d[y * self.output_width + x];
                         let channel = (noise * 255.0) as u8;
                         let color = Color::rgba(channel, channel, channel, 255);
-                        renderer.draw(Vec2::new(x as f32, y as f32), color);
+                        app.draw(x as f32, y as f32, color);
                     }
                 }
             }
@@ -264,11 +261,11 @@ impl Game for PerlinNoise {
 }
 
 fn main() -> Result<()> {
-    let settings = Settings::default()
+    let settings = ApparatusSettings::default()
         .with_screen_size(250, 180)
         .with_pixel_size(2, 2);
-    let engine = Engine::new("Perlin Noise", settings);
-    engine.run::<PerlinNoise>()?;
+    let app = Apparatus::new("Perlin Noise", settings)?;
+    app.run::<PerlinNoise>()?;
 
     Ok(())
 }

@@ -1,5 +1,3 @@
-use crate::Vec2;
-
 pub mod input;
 pub mod window;
 
@@ -8,9 +6,9 @@ pub struct FrameBuffer {
 }
 
 impl FrameBuffer {
-    pub(crate) fn new(dimensions: Vec2) -> Self {
+    pub(crate) fn new(width: usize, height: usize) -> Self {
         Self {
-            data: vec![0; (dimensions.x * dimensions.y) as usize],
+            data: vec![0; width * height],
         }
     }
 }

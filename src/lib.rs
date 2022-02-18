@@ -1,7 +1,6 @@
-pub use crate::engine::apparatus::{Engine, Settings};
+pub use crate::engine::apparatus::{Apparatus, ApparatusSettings};
 pub use crate::engine::game::Game;
-pub use crate::engine::input::*;
-pub use crate::engine::renderer::Renderer;
+pub use crate::engine::key::*;
 pub use crate::engine::sprite::*;
 use crate::errors::ApparatusError;
 pub use crate::maths::*;

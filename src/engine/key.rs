@@ -12,9 +12,3 @@ pub enum Key {
     Right,
     Space,
 }
-
-pub trait Input {
-    fn is_key_held(&self, key: Key) -> bool;
-
-    fn was_key_released(&self, key: Key) -> bool;
-}
