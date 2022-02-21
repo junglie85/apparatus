@@ -40,6 +40,14 @@ impl Game for Geometry {
             self.option = 5;
         }
 
+        if app.was_key_released(Key::Num6) {
+            self.option = 6;
+        }
+
+        if app.was_key_released(Key::Num7) {
+            self.option = 7;
+        }
+
         app.clear(color::css::BLACK);
 
         match self.option {
@@ -48,6 +56,8 @@ impl Game for Geometry {
             3 => draw_filled_triangles(app),
             4 => draw_wireframe_rectangles(app),
             5 => draw_filled_rectangles(app),
+            6 => draw_wireframe_circles(app),
+            7 => draw_filled_circles(app),
             _ => unreachable!("Invalid option number chosen"),
         }
     }
@@ -181,6 +191,14 @@ fn draw_filled_rectangles(app: &mut Apparatus) {
         100.0,
         color::css::DEEPPINK,
     );
+}
+
+fn draw_wireframe_circles(app: &mut Apparatus) {
+    draw_wireframe_circle(&mut app.renderer, 640.0, 360.0, 250.0, color::css::GREEN);
+}
+
+fn draw_filled_circles(app: &mut Apparatus) {
+    draw_filled_circle(&mut app.renderer, 640.0, 360.0, 250.0, color::css::GREEN);
 }
 
 use apparatus::renderer::software_2d::Renderer;
@@ -473,6 +491,89 @@ fn draw_filled_rectangle(
     for y in y0 as u32..=y1 as u32 {
         for x in x0 as u32..=x1 as u32 {
             renderer.put_pixel(x as f32, y as f32, color);
+        }
+    }
+}
+
+/// Draw a wireframe circle centered on (x, y) with radius using Bresenham's algorithm.
+/// See https://www.geeksforgeeks.org/bresenhams-circle-drawing-algorithm/?ref=lbp
+fn draw_wireframe_circle(renderer: &mut Renderer, x: f32, y: f32, radius: f32, color: Color) {
+    let (x, y) = (x as i32, y as i32);
+    let radius = radius as i32;
+
+    let mut x0 = 0;
+    let mut y0 = radius;
+    let mut d = 3 - 2 * radius;
+
+    while y0 >= x0 {
+        renderer.put_pixel((x + x0) as f32, (y + y0) as f32, color);
+        renderer.put_pixel((x - x0) as f32, (y + y0) as f32, color);
+        renderer.put_pixel((x + x0) as f32, (y - y0) as f32, color);
+        renderer.put_pixel((x - x0) as f32, (y - y0) as f32, color);
+        renderer.put_pixel((x + y0) as f32, (y + x0) as f32, color);
+        renderer.put_pixel((x - y0) as f32, (y + x0) as f32, color);
+        renderer.put_pixel((x + y0) as f32, (y - x0) as f32, color);
+        renderer.put_pixel((x - y0) as f32, (y - x0) as f32, color);
+
+        x0 += 1;
+        if d > 0 {
+            y0 -= 1;
+            d += 4 * (x0 - y0) + 10;
+        } else {
+            d += 4 * x0 + 6;
+        }
+    }
+}
+
+/// Draw a filled circle centered on (x, y) with radius using Bresenham's algorithm.
+fn draw_filled_circle(renderer: &mut Renderer, x: f32, y: f32, radius: f32, color: Color) {
+    let (x, y) = (x as i32, y as i32);
+    let radius = radius as i32;
+
+    let mut x0 = 0;
+    let mut y0 = radius;
+    let mut d = 3 - 2 * radius;
+
+    while y0 >= x0 {
+        draw_line(
+            renderer,
+            (x - x0) as f32,
+            (y - y0) as f32,
+            (x + x0) as f32,
+            (y - y0) as f32,
+            color,
+        );
+        draw_line(
+            renderer,
+            (x - y0) as f32,
+            (y - x0) as f32,
+            (x + y0) as f32,
+            (y - x0) as f32,
+            color,
+        );
+        draw_line(
+            renderer,
+            (x - y0) as f32,
+            (y + x0) as f32,
+            (x + y0) as f32,
+            (y + x0) as f32,
+            color,
+        );
+        draw_line(
+            renderer,
+            (x - x0) as f32,
+            (y + y0) as f32,
+            (x + x0) as f32,
+            (y + y0) as f32,
+            color,
+        );
+
+        x0 += 1;
+        if d > 0 {
+            y0 -= 1;
+            d += 4 * (x0 - y0) + 10;
+        } else {
+            d += 4 * x0 + 6;
         }
     }
 }
