@@ -72,28 +72,6 @@ impl Renderer {
         }
     }
 
-    pub fn fill_rect(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, color: Color) {
-        let mut x1 = clamp(0.0, x1, self.width);
-        let mut y1 = clamp(0.0, y1, self.height);
-
-        let mut x2 = clamp(0.0, x2, self.width);
-        let mut y2 = clamp(0.0, y2, self.height);
-
-        if x1 > x2 {
-            std::mem::swap(&mut x1, &mut x2);
-        }
-
-        if y1 > y2 {
-            std::mem::swap(&mut y1, &mut y2);
-        }
-
-        for y in y1 as u32..=y2 as u32 {
-            for x in x1 as u32..=x2 as u32 {
-                self.put_pixel(x as f32, y as f32, color);
-            }
-        }
-    }
-
     /// Draw a line from (x0, y0) to (x1, y1) using Bresenham's line algorithm.
     pub fn draw_line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, color: Color) {
         let x0 = (clamp(0.0, x0, self.width) + 0.5) as u32;

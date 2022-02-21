@@ -148,27 +148,28 @@ impl Apparatus {
             #[cfg(debug_assertions)]
             {
                 let fps = 1.0 / self.clock.delta().as_secs_f32();
-                let width = self.window_width;
-                let height = self.window_height;
-                let debug_box_left = width - 190.0;
-                self.renderer.fill_rect(
+                let debug_box_width = 190.0;
+                let debug_box_left = self.window_width - debug_box_width;
+                let debug_box_height = 50.0;
+                let debug_box_bottom = self.window_height - debug_box_height;
+                self.renderer.draw_filled_rectangle(
                     debug_box_left,
-                    height,
-                    width,
-                    height - 50.0,
+                    debug_box_bottom,
+                    debug_box_width,
+                    debug_box_height,
                     color::css::SILVER,
                 );
                 self.renderer.draw_string(
                     format!("ms/F: {:.2}", self.clock.delta().as_secs_f32() * 1_000.0),
-                    width - 180.0,
-                    height - 20.0,
+                    debug_box_left + 10.0,
+                    debug_box_bottom + debug_box_height - 20.0,
                     color::css::BLACK,
                     12.0,
                 );
                 self.renderer.draw_string(
                     format!("FPS: {:.2}", fps),
-                    width - 180.0,
-                    height - 30.0,
+                    debug_box_left + 10.0,
+                    debug_box_bottom + debug_box_height - 30.0,
                     color::css::BLACK,
                     12.0,
                 );
@@ -177,8 +178,8 @@ impl Apparatus {
                         "Sleep tolerance (ms): {}",
                         util::get_sleep_tolerance().as_micros() as f32 / 1_000.0
                     ),
-                    width - 180.0,
-                    height - 40.0,
+                    debug_box_left + 10.0,
+                    debug_box_bottom + debug_box_height - 40.0,
                     color::css::BLACK,
                     12.0,
                 );
