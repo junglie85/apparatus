@@ -203,7 +203,7 @@ impl Game for RetroRacer {
         let screen_width = app.screen_width();
 
         // Draw scenery.
-        for y in (screen_height / 2)..screen_height {
+        for y in (screen_height / 2)..=screen_height {
             let sky = if (y as f32) < screen_height as f32 * 0.75 {
                 color::css::LIGHTSKYBLUE
             } else {
