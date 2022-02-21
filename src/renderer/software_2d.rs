@@ -6,8 +6,8 @@ use crate::maths::clamp;
 use crate::platform::framebuffer::FrameBuffer;
 
 pub struct Renderer {
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
     pixel_width: usize,
     pixel_height: usize,
     buffer: FrameBuffer,

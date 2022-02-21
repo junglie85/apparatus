@@ -62,7 +62,7 @@ pub struct Apparatus {
     _logger: Logger,
     clock: Clock,
     window: Window,
-    renderer: Renderer,
+    pub renderer: Renderer,
     input: Input,
     target_frame_duration: Duration,
     running: bool,

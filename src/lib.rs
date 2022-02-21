@@ -6,4 +6,4 @@ pub mod maths;
 pub mod util;
 
 mod platform;
-mod renderer;
+pub mod renderer;

@@ -22,6 +22,10 @@ anyhow = "1"
 rand = "0.8"
 
 [[example]]
+name = "geometry"
+path = "examples/geometry/main.rs"
+
+[[example]]
 name = "mini-platformer"
 path = "examples/mini_platformer/main.rs"
 

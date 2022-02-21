@@ -53,6 +53,27 @@ impl Input {
         let key_state = get_key_state(Key::Num3, window, &self.keys);
         keys.insert(Key::Num3, key_state);
 
+        let key_state = get_key_state(Key::Num4, window, &self.keys);
+        keys.insert(Key::Num4, key_state);
+
+        let key_state = get_key_state(Key::Num5, window, &self.keys);
+        keys.insert(Key::Num5, key_state);
+
+        let key_state = get_key_state(Key::Num6, window, &self.keys);
+        keys.insert(Key::Num6, key_state);
+
+        let key_state = get_key_state(Key::Num7, window, &self.keys);
+        keys.insert(Key::Num7, key_state);
+
+        let key_state = get_key_state(Key::Num8, window, &self.keys);
+        keys.insert(Key::Num8, key_state);
+
+        let key_state = get_key_state(Key::Num9, window, &self.keys);
+        keys.insert(Key::Num9, key_state);
+
+        let key_state = get_key_state(Key::Num0, window, &self.keys);
+        keys.insert(Key::Num0, key_state);
+
         let key_state = get_key_state(Key::A, window, &self.keys);
         keys.insert(Key::A, key_state);
 
@@ -103,6 +124,13 @@ impl From<Key> for NativeKey {
             Key::Num1 => NativeKey(minifb::Key::Key1),
             Key::Num2 => NativeKey(minifb::Key::Key2),
             Key::Num3 => NativeKey(minifb::Key::Key3),
+            Key::Num4 => NativeKey(minifb::Key::Key4),
+            Key::Num5 => NativeKey(minifb::Key::Key5),
+            Key::Num6 => NativeKey(minifb::Key::Key6),
+            Key::Num7 => NativeKey(minifb::Key::Key7),
+            Key::Num8 => NativeKey(minifb::Key::Key8),
+            Key::Num9 => NativeKey(minifb::Key::Key9),
+            Key::Num0 => NativeKey(minifb::Key::Key0),
             Key::A => NativeKey(minifb::Key::A),
             Key::Q => NativeKey(minifb::Key::Q),
             Key::Z => NativeKey(minifb::Key::Z),

@@ -97,6 +97,7 @@ See the [examples](#examples) for more in-depth usage.
 
 ## Examples
 
+- [Geometry](examples/geometry)
 - [Perlin Noise](examples/perlin_noise)
 - [Retro Racer](examples/retro_racer)
 
