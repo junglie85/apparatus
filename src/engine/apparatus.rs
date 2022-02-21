@@ -62,7 +62,7 @@ pub struct Apparatus {
     _logger: Logger,
     clock: Clock,
     window: Window,
-    pub renderer: Renderer,
+    renderer: Renderer,
     input: Input,
     target_frame_duration: Duration,
     running: bool,
@@ -236,6 +236,65 @@ impl Apparatus {
 
     pub fn draw(&mut self, x: f32, y: f32, color: Color) {
         self.renderer.draw(x, y, color);
+    }
+
+    pub fn draw_line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, color: Color) {
+        self.renderer.draw_line(x0, y0, x1, y1, color);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_wireframe_triangle(
+        &mut self,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        color: Color,
+    ) {
+        self.renderer
+            .draw_wireframe_triangle(x0, y0, x1, y1, x2, y2, color);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_filled_triangle(
+        &mut self,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        color: Color,
+    ) {
+        self.renderer
+            .draw_filled_triangle(x0, y0, x1, y1, x2, y2, color);
+    }
+
+    pub fn draw_wireframe_rectangle(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: Color,
+    ) {
+        self.renderer
+            .draw_wireframe_rectangle(x, y, width, height, color);
+    }
+
+    pub fn draw_filled_rectangle(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
+        self.renderer
+            .draw_filled_rectangle(x, y, width, height, color);
+    }
+
+    pub fn draw_wireframe_circle(&mut self, x: f32, y: f32, radius: f32, color: Color) {
+        self.renderer.draw_wireframe_circle(x, y, radius, color);
+    }
+
+    pub fn draw_filled_circle(&mut self, x: f32, y: f32, radius: f32, color: Color) {
+        self.renderer.draw_filled_circle(x, y, radius, color);
     }
 
     pub fn draw_string(&mut self, value: impl AsRef<str>, x: f32, y: f32, color: Color, size: f32) {

@@ -4,10 +4,11 @@ use crate::font;
 use crate::font::Font;
 use crate::maths::clamp;
 use crate::platform::framebuffer::FrameBuffer;
+use crate::renderer::bresenham::BresenhamLine;
 
 pub struct Renderer {
-    pub width: f32,
-    pub height: f32,
+    width: f32,
+    height: f32,
     pixel_width: usize,
     pixel_height: usize,
     buffer: FrameBuffer,
@@ -38,7 +39,7 @@ impl Renderer {
         &self.buffer
     }
 
-    pub fn put_pixel(&mut self, x: f32, y: f32, color: Color) {
+    fn put_pixel(&mut self, x: f32, y: f32, color: Color) {
         let y = self.height - y;
 
         // TODO: transmute?
@@ -89,6 +90,293 @@ impl Renderer {
         for y in y1 as u32..=y2 as u32 {
             for x in x1 as u32..=x2 as u32 {
                 self.put_pixel(x as f32, y as f32, color);
+            }
+        }
+    }
+
+    /// Draw a line from (x0, y0) to (x1, y1) using Bresenham's line algorithm.
+    pub fn draw_line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, color: Color) {
+        let x0 = (clamp(0.0, x0, self.width) + 0.5) as u32;
+        let y0 = (clamp(0.0, y0, self.height) + 0.5) as u32;
+        let x1 = (clamp(0.0, x1, self.width) + 0.5) as u32;
+        let y1 = (clamp(0.0, y1, self.height) + 0.5) as u32;
+
+        let line = BresenhamLine::new(x0, y0, x1, y1);
+        for (x, y) in line {
+            self.put_pixel(x as f32, y as f32, color);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_wireframe_triangle(
+        &mut self,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        color: Color,
+    ) {
+        self.draw_line(x0, y0, x1, y1, color);
+        self.draw_line(x1, y1, x2, y2, color);
+        self.draw_line(x2, y2, x0, y0, color);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_filled_triangle(
+        &mut self,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        color: Color,
+    ) {
+        let (mut x0, mut y0, mut x1, mut y1, mut x2, mut y2) = (x0, y0, x1, y1, x2, y2);
+        // Sort vertices by y so that y0 <= y1 <= y2.
+        if y1 < y0 {
+            std::mem::swap(&mut x0, &mut x1);
+            std::mem::swap(&mut y0, &mut y1);
+        }
+
+        if y2 < y0 {
+            std::mem::swap(&mut x0, &mut x2);
+            std::mem::swap(&mut y0, &mut y2);
+        }
+
+        if y2 < y1 {
+            std::mem::swap(&mut x2, &mut x1);
+            std::mem::swap(&mut y2, &mut y1);
+        }
+
+        // Split into a flat top and flat bottom triangle - see http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html.
+        let x3 = x0 + ((y1 - y0) / (y2 - y0)) * (x2 - x0);
+
+        // For each top and bottom triangle, draw each side, when y increases, we have a straight horizontal line, draw it and repeat.
+        fn fill_flat_top_triangle(
+            renderer: &mut Renderer,
+            x0: u32,
+            y0: u32,
+            x1: u32,
+            y1: u32,
+            x2: u32,
+            y2: u32,
+            color: Color,
+        ) {
+            let mut left = BresenhamLine::new(x0, y0, x1, y1);
+            let mut right = BresenhamLine::new(x0, y0, x2, y2);
+
+            let mut current_left_x = x0;
+            let mut current_left_y = y0;
+            let mut current_right_x = x0;
+            let mut current_right_y = y0;
+
+            while current_left_y < y1 && current_right_y < y2 {
+                fill_inner_triangle(
+                    renderer,
+                    color,
+                    &mut left,
+                    &mut right,
+                    &mut current_left_x,
+                    &mut current_left_y,
+                    &mut current_right_x,
+                    &mut current_right_y,
+                );
+            }
+        }
+
+        fn fill_flat_bottom_triangle(
+            renderer: &mut Renderer,
+            x0: u32,
+            y0: u32,
+            x1: u32,
+            y1: u32,
+            x2: u32,
+            y2: u32,
+            color: Color,
+        ) {
+            let mut left = BresenhamLine::new(x0, y0, x2, y2);
+            let mut right = BresenhamLine::new(x1, y1, x2, y2);
+
+            let mut current_left_x = x0;
+            let mut current_left_y = y0;
+            let mut current_right_x = x1;
+            let mut current_right_y = y1;
+
+            while current_left_y < y2 && current_right_y < y2 {
+                fill_inner_triangle(
+                    renderer,
+                    color,
+                    &mut left,
+                    &mut right,
+                    &mut current_left_x,
+                    &mut current_left_y,
+                    &mut current_right_x,
+                    &mut current_right_y,
+                );
+            }
+        }
+
+        fn fill_inner_triangle(
+            renderer: &mut Renderer,
+            color: Color,
+            left: &mut BresenhamLine,
+            right: &mut BresenhamLine,
+            current_left_x: &mut u32,
+            current_left_y: &mut u32,
+            current_right_x: &mut u32,
+            current_right_y: &mut u32,
+        ) {
+            renderer.draw_line(
+                *current_left_x as f32,
+                *current_left_y as f32,
+                *current_right_x as f32,
+                *current_right_y as f32,
+                color,
+            );
+
+            for (x, y) in left.by_ref() {
+                if y > *current_left_y {
+                    *current_left_x = x;
+                    *current_left_y = y;
+                    break;
+                }
+            }
+
+            for (x, y) in right.by_ref() {
+                if y > *current_right_y {
+                    *current_right_x = x;
+                    *current_right_y = y;
+                    break;
+                }
+            }
+        }
+
+        let (x0, y0, x1, y1, x2, y2, x3) = (
+            x0 as u32, y0 as u32, x1 as u32, y1 as u32, x2 as u32, y2 as u32, x3 as u32,
+        );
+        fill_flat_bottom_triangle(self, x1, y1, x3, y1, x2, y2, color);
+        fill_flat_top_triangle(self, x0, y0, x1, y1, x3, y1, color);
+    }
+
+    pub fn draw_wireframe_rectangle(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: Color,
+    ) {
+        let x1 = x + width;
+        let y1 = y + height;
+        self.draw_line(x, y, x1, y, color);
+        self.draw_line(x, y, x, y1, color);
+        self.draw_line(x1, y, x1, y1, color);
+        self.draw_line(x, y1, x1, y1, color);
+    }
+
+    pub fn draw_filled_rectangle(&mut self, x: f32, y: f32, width: f32, height: f32, color: Color) {
+        let x1 = x + width;
+        let y1 = y + height;
+
+        let mut x0 = clamp(0.0, x, self.width);
+        let mut y0 = clamp(0.0, y, self.height);
+
+        let mut x1 = clamp(0.0, x1, self.width);
+        let mut y1 = clamp(0.0, y1, self.height);
+
+        if x0 > x1 {
+            std::mem::swap(&mut x0, &mut x1);
+        }
+
+        if y0 > y1 {
+            std::mem::swap(&mut y0, &mut y1);
+        }
+
+        for y in y0 as u32..=y1 as u32 {
+            for x in x0 as u32..=x1 as u32 {
+                self.put_pixel(x as f32, y as f32, color);
+            }
+        }
+    }
+
+    /// Draw a wireframe circle centered on (x, y) with radius using Bresenham's algorithm.
+    /// See https://www.geeksforgeeks.org/bresenhams-circle-drawing-algorithm/?ref=lbp
+    pub fn draw_wireframe_circle(&mut self, x: f32, y: f32, radius: f32, color: Color) {
+        let (x, y) = (x as i32, y as i32);
+        let radius = radius as i32;
+
+        let mut x0 = 0;
+        let mut y0 = radius;
+        let mut d = 3 - 2 * radius;
+
+        while y0 >= x0 {
+            self.put_pixel((x + x0) as f32, (y + y0) as f32, color);
+            self.put_pixel((x - x0) as f32, (y + y0) as f32, color);
+            self.put_pixel((x + x0) as f32, (y - y0) as f32, color);
+            self.put_pixel((x - x0) as f32, (y - y0) as f32, color);
+            self.put_pixel((x + y0) as f32, (y + x0) as f32, color);
+            self.put_pixel((x - y0) as f32, (y + x0) as f32, color);
+            self.put_pixel((x + y0) as f32, (y - x0) as f32, color);
+            self.put_pixel((x - y0) as f32, (y - x0) as f32, color);
+
+            x0 += 1;
+            if d > 0 {
+                y0 -= 1;
+                d += 4 * (x0 - y0) + 10;
+            } else {
+                d += 4 * x0 + 6;
+            }
+        }
+    }
+
+    /// Draw a filled circle centered on (x, y) with radius using Bresenham's algorithm.
+    pub fn draw_filled_circle(&mut self, x: f32, y: f32, radius: f32, color: Color) {
+        let (x, y) = (x as i32, y as i32);
+        let radius = radius as i32;
+
+        let mut x0 = 0;
+        let mut y0 = radius;
+        let mut d = 3 - 2 * radius;
+
+        while y0 >= x0 {
+            self.draw_line(
+                (x - x0) as f32,
+                (y - y0) as f32,
+                (x + x0) as f32,
+                (y - y0) as f32,
+                color,
+            );
+            self.draw_line(
+                (x - y0) as f32,
+                (y - x0) as f32,
+                (x + y0) as f32,
+                (y - x0) as f32,
+                color,
+            );
+            self.draw_line(
+                (x - y0) as f32,
+                (y + x0) as f32,
+                (x + y0) as f32,
+                (y + x0) as f32,
+                color,
+            );
+            self.draw_line(
+                (x - x0) as f32,
+                (y + y0) as f32,
+                (x + x0) as f32,
+                (y + y0) as f32,
+                color,
+            );
+
+            x0 += 1;
+            if d > 0 {
+                y0 -= 1;
+                d += 4 * (x0 - y0) + 10;
+            } else {
+                d += 4 * x0 + 6;
             }
         }
     }
