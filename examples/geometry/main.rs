@@ -60,24 +60,27 @@ impl Game for Geometry {
 }
 
 fn main() -> Result<()> {
-    let app = Apparatus::new("Geometry", ApparatusSettings::default())?;
+    let settings = ApparatusSettings::default()
+        .with_pixel_size(4, 4)
+        .with_screen_size(320, 180);
+    let app = Apparatus::new("Geometry", settings)?;
     app.run::<Geometry>()?;
 
     Ok(())
 }
 
 fn draw_lines(app: &mut Apparatus) {
-    app.draw_line(20.0, 20.0, 1260.0, 360.0, color::css::WHITE);
-    app.draw_line(20.0, 20.0, 640.0, 700.0, color::css::GREEN);
+    app.draw_line(20.0, 20.0, 300.0, 90.0, color::css::WHITE);
+    app.draw_line(20.0, 20.0, 160.0, 160.0, color::css::GREEN);
 
-    app.draw_line(1260.0, 20.0, 20.0, 360.0, color::css::RED);
-    app.draw_line(1260.0, 20.0, 640.0, 700.0, color::css::YELLOW);
+    app.draw_line(300.0, 20.0, 20.0, 90.0, color::css::RED);
+    app.draw_line(300.0, 20.0, 160.0, 160.0, color::css::YELLOW);
 
-    app.draw_line(20.0, 700.0, 1260.0, 360.0, color::css::PINK);
-    app.draw_line(20.0, 700.0, 640.0, 20.0, color::css::CYAN);
+    app.draw_line(20.0, 160.0, 300.0, 90.0, color::css::PINK);
+    app.draw_line(20.0, 160.0, 160.0, 20.0, color::css::CYAN);
 
-    app.draw_line(1260.0, 700.0, 20.0, 360.0, color::css::BLUE);
-    app.draw_line(1260.0, 700.0, 640.0, 20.0, color::css::GRAY);
+    app.draw_line(300.0, 160.0, 20.0, 90.0, color::css::BLUE);
+    app.draw_line(300.0, 160.0, 160.0, 20.0, color::css::GRAY);
 }
 
 fn draw_wireframe_triangles(app: &mut Apparatus) {
@@ -85,39 +88,31 @@ fn draw_wireframe_triangles(app: &mut Apparatus) {
         50.0,
         50.0,
         200.0,
-        650.0,
-        1100.0,
-        200.0,
+        30.0,
+        260.0,
+        130.0,
         color::css::LIGHTSKYBLUE,
     );
 }
 
 fn draw_filled_triangles(app: &mut Apparatus) {
-    app.draw_filled_triangle(
-        50.0,
-        50.0,
-        200.0,
-        650.0,
-        1100.0,
-        200.0,
-        color::css::HONEYDEW,
-    );
+    app.draw_filled_triangle(50.0, 50.0, 200.0, 30.0, 260.0, 130.0, color::css::HONEYDEW);
 }
 
 fn draw_wireframe_rectangles(app: &mut Apparatus) {
-    app.draw_wireframe_rectangle(20.0, 20.0, 100.0, 100.0, color::css::RED);
-    app.draw_wireframe_rectangle(200.0, 300.0, 300.0, 100.0, color::css::DEEPPINK);
+    app.draw_wireframe_rectangle(10.0, 10.0, 50.0, 50.0, color::css::RED);
+    app.draw_wireframe_rectangle(70.0, 70.0, 200.0, 100.0, color::css::DEEPPINK);
 }
 
 fn draw_filled_rectangles(app: &mut Apparatus) {
-    app.draw_filled_rectangle(20.0, 20.0, 100.0, 100.0, color::css::RED);
-    app.draw_filled_rectangle(200.0, 300.0, 300.0, 100.0, color::css::DEEPPINK);
+    app.draw_filled_rectangle(10.0, 10.0, 50.0, 50.0, color::css::RED);
+    app.draw_filled_rectangle(70.0, 70.0, 200.0, 100.0, color::css::DEEPPINK);
 }
 
 fn draw_wireframe_circles(app: &mut Apparatus) {
-    app.draw_wireframe_circle(640.0, 360.0, 250.0, color::css::GREEN);
+    app.draw_wireframe_circle(160.0, 90.0, 70.0, color::css::GREEN);
 }
 
 fn draw_filled_circles(app: &mut Apparatus) {
-    app.draw_filled_circle(640.0, 360.0, 250.0, color::css::GREEN);
+    app.draw_filled_circle(160.0, 90.0, 70.0, color::css::GREEN);
 }

@@ -81,7 +81,7 @@ impl Renderer {
 
         let line = BresenhamLine::new(x0, y0, x1, y1);
         for (x, y) in line {
-            self.put_pixel(x as f32, y as f32, color);
+            self.draw(x as f32, y as f32, color);
         }
     }
 
@@ -275,7 +275,7 @@ impl Renderer {
 
         for y in y0 as u32..=y1 as u32 {
             for x in x0 as u32..=x1 as u32 {
-                self.put_pixel(x as f32, y as f32, color);
+                self.draw(x as f32, y as f32, color);
             }
         }
     }
@@ -291,14 +291,14 @@ impl Renderer {
         let mut d = 3 - 2 * radius;
 
         while y0 >= x0 {
-            self.put_pixel((x + x0) as f32, (y + y0) as f32, color);
-            self.put_pixel((x - x0) as f32, (y + y0) as f32, color);
-            self.put_pixel((x + x0) as f32, (y - y0) as f32, color);
-            self.put_pixel((x - x0) as f32, (y - y0) as f32, color);
-            self.put_pixel((x + y0) as f32, (y + x0) as f32, color);
-            self.put_pixel((x - y0) as f32, (y + x0) as f32, color);
-            self.put_pixel((x + y0) as f32, (y - x0) as f32, color);
-            self.put_pixel((x - y0) as f32, (y - x0) as f32, color);
+            self.draw((x + x0) as f32, (y + y0) as f32, color);
+            self.draw((x - x0) as f32, (y + y0) as f32, color);
+            self.draw((x + x0) as f32, (y - y0) as f32, color);
+            self.draw((x - x0) as f32, (y - y0) as f32, color);
+            self.draw((x + y0) as f32, (y + x0) as f32, color);
+            self.draw((x - y0) as f32, (y + x0) as f32, color);
+            self.draw((x + y0) as f32, (y - x0) as f32, color);
+            self.draw((x - y0) as f32, (y - x0) as f32, color);
 
             x0 += 1;
             if d > 0 {
@@ -399,6 +399,38 @@ impl Renderer {
                 let color = Color::rgba(r, g, b, a);
 
                 self.draw(x, y, color);
+            }
+        }
+    }
+
+    pub fn draw_filled_rectangle_unscaled(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        color: Color,
+    ) {
+        let x1 = x + width;
+        let y1 = y + height;
+
+        let mut x0 = clamp(0.0, x, self.width);
+        let mut y0 = clamp(0.0, y, self.height);
+
+        let mut x1 = clamp(0.0, x1, self.width);
+        let mut y1 = clamp(0.0, y1, self.height);
+
+        if x0 > x1 {
+            std::mem::swap(&mut x0, &mut x1);
+        }
+
+        if y0 > y1 {
+            std::mem::swap(&mut y0, &mut y1);
+        }
+
+        for y in y0 as u32..=y1 as u32 {
+            for x in x0 as u32..=x1 as u32 {
+                self.put_pixel(x as f32, y as f32, color);
             }
         }
     }

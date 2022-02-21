@@ -152,7 +152,7 @@ impl Apparatus {
                 let debug_box_left = self.window_width - debug_box_width;
                 let debug_box_height = 50.0;
                 let debug_box_bottom = self.window_height - debug_box_height;
-                self.renderer.draw_filled_rectangle(
+                self.renderer.draw_filled_rectangle_unscaled(
                     debug_box_left,
                     debug_box_bottom,
                     debug_box_width,
