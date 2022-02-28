@@ -7,7 +7,9 @@ use crate::engine::clock::Clock;
 use crate::engine::game::Game;
 use crate::engine::key::Key;
 use crate::engine::logger::Logger;
+use crate::engine::mouse::MouseButton;
 use crate::engine::sprite::Sprite;
+use crate::engine::Point;
 use crate::errors::ApparatusError;
 use crate::platform::framebuffer::FrameBuffer;
 use crate::platform::input::Input;
@@ -222,12 +224,39 @@ impl Apparatus {
     }
 
     // ----- Input -----
+    pub fn is_key_pressed(&self, key: Key) -> bool {
+        self.input.is_key_pressed(key)
+    }
+
     pub fn is_key_held(&self, key: Key) -> bool {
         self.input.is_key_held(key)
     }
 
     pub fn was_key_released(&self, key: Key) -> bool {
         self.input.was_key_released(key)
+    }
+
+    pub fn mouse_pos_x(&self) -> f32 {
+        self.input.mouse_pos_x() / self.pixel_width as f32
+    }
+
+    pub fn mouse_pos_y(&self) -> f32 {
+        self.input.mouse_pos_y() / self.pixel_height as f32
+    }
+
+    pub fn mouse_in_window(&self) -> bool {
+        self.input.mouse_pos_x() >= 0.0
+            && self.input.mouse_pos_x() <= self.window_width()
+            && self.input.mouse_pos_y() >= 0.0
+            && self.input.mouse_pos_y() <= self.window_height()
+    }
+
+    pub fn is_mouse_button_held(&self, button: MouseButton) -> bool {
+        self.input.is_mouse_button_held(button)
+    }
+
+    pub fn was_mouse_button_released(&self, button: MouseButton) -> bool {
+        self.input.was_mouse_button_released(button)
     }
 
     // ----- Graphics -----
@@ -296,6 +325,18 @@ impl Apparatus {
 
     pub fn draw_filled_circle(&mut self, x: f32, y: f32, radius: f32, color: Color) {
         self.renderer.draw_filled_circle(x, y, radius, color);
+    }
+
+    pub fn draw_wireframe_model(
+        &mut self,
+        position: Point,
+        rotation: f32,
+        scale: f32,
+        model: &[Point],
+        color: Color,
+    ) {
+        self.renderer
+            .draw_wireframe_model(position, rotation, scale, model, color);
     }
 
     pub fn draw_string(&mut self, value: impl AsRef<str>, x: f32, y: f32, color: Color, size: f32) {

@@ -44,6 +44,10 @@ impl Game for Geometry {
             self.option = 7;
         }
 
+        if app.was_key_released(Key::Num8) {
+            self.option = 8;
+        }
+
         app.clear(color::css::BLACK);
 
         match self.option {
@@ -54,6 +58,7 @@ impl Game for Geometry {
             5 => draw_filled_rectangles(app),
             6 => draw_wireframe_circles(app),
             7 => draw_filled_circles(app),
+            8 => draw_wireframe_models(app),
             _ => unreachable!("Invalid option number chosen"),
         }
     }
@@ -115,4 +120,37 @@ fn draw_wireframe_circles(app: &mut Apparatus) {
 
 fn draw_filled_circles(app: &mut Apparatus) {
     app.draw_filled_circle(160.0, 90.0, 70.0, color::css::GREEN);
+}
+
+fn draw_wireframe_models(app: &mut Apparatus) {
+    let model = [
+        (0.0, 10.0).into(),
+        (10.0, 10.0).into(),
+        (10.0, 0.0).into(),
+        (0.0, 0.0).into(),
+    ];
+
+    app.draw_wireframe_model(
+        (20.0, 20.0).into(),
+        0.0,
+        1.0,
+        &model,
+        color::css::BLUEVIOLET,
+    );
+
+    let model = vec![
+        (0.0, 10.0).into(),
+        (5.0, 15.0).into(),
+        (10.0, 10.0).into(),
+        (10.0, 0.0).into(),
+        (0.0, 0.0).into(),
+    ];
+
+    app.draw_wireframe_model(
+        (100.0, 100.0).into(),
+        f32::to_radians(45.0),
+        2.0,
+        &model,
+        color::css::LAVENDER,
+    );
 }

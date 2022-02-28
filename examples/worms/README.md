@@ -19,3 +19,7 @@ cargo run --example worms
 ## License
 
 The source code for this example is subject to the [OLC-3 License](https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md).
+
+## Notes
+
+See Asteroids and Flappy Bird for physics

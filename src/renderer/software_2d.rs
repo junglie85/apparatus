@@ -1,5 +1,6 @@
 use crate::color::Color;
 use crate::engine::sprite::Sprite;
+use crate::engine::Point;
 use crate::font;
 use crate::font::Font;
 use crate::maths::clamp;
@@ -44,15 +45,16 @@ impl Renderer {
 
         // TODO: transmute?
         if x >= 0.0 && x < self.width && y >= 0.0 && y < self.height {
-            let dst = self.buffer.data[(y * self.width + x) as usize];
+            let buffer_idx = y as usize * self.width as usize + x as usize;
+
+            let dst = self.buffer.data[buffer_idx];
             let dst_a = ((dst >> 24) & 255) as u8;
             let dst_r = ((dst >> 16) & 255) as u8;
             let dst_g = ((dst >> 8) & 255) as u8;
             let dst_b = (dst & 255) as u8;
             let dst = Color::rgba(dst_r, dst_g, dst_b, dst_a);
 
-            self.buffer.data[(y * self.width + x) as usize] =
-                Color::linear_blend(color, dst).into();
+            self.buffer.data[buffer_idx] = Color::linear_blend(color, dst).into();
         }
     }
 
@@ -63,10 +65,14 @@ impl Renderer {
     pub fn draw(&mut self, x: f32, y: f32, color: Color) {
         let x = x * self.pixel_width as f32;
         let y = y * self.pixel_height as f32;
+
         for pixel_y in 0..self.pixel_height {
             for pixel_x in 0..self.pixel_width {
                 let x = x + pixel_x as f32;
                 let y = y + pixel_y as f32;
+                let x = clamp(0.0, x, self.width);
+                let y = clamp(0.0, y, self.height);
+
                 self.put_pixel(x, y, color);
             }
         }
@@ -74,10 +80,10 @@ impl Renderer {
 
     /// Draw a line from (x0, y0) to (x1, y1) using Bresenham's line algorithm.
     pub fn draw_line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, color: Color) {
-        let x0 = (clamp(0.0, x0, self.width) + 0.5) as u32;
-        let y0 = (clamp(0.0, y0, self.height) + 0.5) as u32;
-        let x1 = (clamp(0.0, x1, self.width) + 0.5) as u32;
-        let y1 = (clamp(0.0, y1, self.height) + 0.5) as u32;
+        let x0 = (clamp(0.0, x0.floor(), self.width) + 0.5) as u32;
+        let y0 = (clamp(0.0, y0.floor(), self.height) + 0.5) as u32;
+        let x1 = (clamp(0.0, x1.floor(), self.width) + 0.5) as u32;
+        let y1 = (clamp(0.0, y1.floor(), self.height) + 0.5) as u32;
 
         let line = BresenhamLine::new(x0, y0, x1, y1);
         for (x, y) in line {
@@ -259,11 +265,11 @@ impl Renderer {
         let x1 = x + width;
         let y1 = y + height;
 
-        let mut x0 = clamp(0.0, x, self.width);
-        let mut y0 = clamp(0.0, y, self.height);
+        let mut x0 = clamp(0.0, x.floor(), self.width);
+        let mut y0 = clamp(0.0, y.floor(), self.height);
 
-        let mut x1 = clamp(0.0, x1, self.width);
-        let mut y1 = clamp(0.0, y1, self.height);
+        let mut x1 = clamp(0.0, x1.floor(), self.width);
+        let mut y1 = clamp(0.0, y1.floor(), self.height);
 
         if x0 > x1 {
             std::mem::swap(&mut x0, &mut x1);
@@ -356,6 +362,43 @@ impl Renderer {
             } else {
                 d += 4 * x0 + 6;
             }
+        }
+    }
+
+    /// Draw a wireframe outline of a model at a given position (translation), rotation (radians) and scale.
+    pub fn draw_wireframe_model(
+        &mut self,
+        position: Point,
+        rotation: f32,
+        scale: f32,
+        model: &[Point],
+        color: Color,
+    ) {
+        let vertices: Vec<Point> = model
+            .iter()
+            .map(|vertex| {
+                let (x, y) = (vertex.x(), vertex.y());
+
+                let (x, y) = (x * scale, y * scale); // Scale.
+
+                // y-axis is up, but we draw as if it is down, which means the rotation is in the wrong direction, so flip it.
+                let rotation = -rotation;
+                let (x, y) = (
+                    x * rotation.cos() - y * rotation.sin(),
+                    y * rotation.cos() + x * rotation.sin(),
+                ); // Rotate.
+
+                let (x, y) = (x + position.x(), y + position.y()); // Translate
+
+                (x, y).into()
+            })
+            .collect();
+
+        let count = vertices.len();
+        for i in 0..count {
+            let a = &vertices[i];
+            let b = &vertices[(i + 1) % count];
+            self.draw_line(a.x(), a.y(), b.x(), b.y(), color);
         }
     }
 
