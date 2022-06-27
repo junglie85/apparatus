@@ -16,6 +16,10 @@ To run:
 cargo run --example worms
 ```
 
+Move the target left and right with `A` and `S`.
+Jump with `Z`.
+Fire with `SPACE`.
+
 ## License
 
 The source code for this example is subject to the [OLC-3 License](https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md).

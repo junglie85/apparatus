@@ -100,6 +100,7 @@ See the [examples](#examples) for more in-depth usage.
 - [Geometry](examples/geometry)
 - [Perlin Noise](examples/perlin_noise)
 - [Retro Racer](examples/retro_racer)
+- [Worms](examples/worms)
 
 ## Development
 
